@@ -1,0 +1,41 @@
+{
+    "document_type": "passbook",
+    "display_name": "Passbook",
+    "fields": [
+        {
+            "name": "name_of_candidate",
+            "original_name": "Name of Candidate",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for Name of Candidate"
+        },
+        {
+            "name": "bank_name",
+            "original_name": "bank_name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for bank_name"
+        },
+        {
+            "name": "bank_account_number",
+            "original_name": "bank_account_number",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for bank_account_number"
+        },
+        {
+            "name": "bank_ifsc_code",
+            "original_name": "bank_ifsc_code",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for bank_ifsc_code"
+        },
+        {
+            "name": "branch_name",
+            "original_name": "branch_name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for branch_name"
+        }
+    ]
+}

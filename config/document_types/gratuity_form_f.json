@@ -1,0 +1,55 @@
+{
+    "document_type": "gratuity_form_f",
+    "display_name": "Gratuity form F",
+    "fields": [
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "nominee_name",
+            "original_name": "Nominee Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Name"
+        },
+        {
+            "name": "nominee_age",
+            "original_name": "Nominee Age",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Age"
+        },
+        {
+            "name": "nominee_relationship",
+            "original_name": "Nominee Relationship",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Relationship"
+        },
+        {
+            "name": "nominee_proposition",
+            "original_name": "Nominee Proposition",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Proposition"
+        },
+        {
+            "name": "statement_details_name_sex_marriedunmarried_address",
+            "original_name": "Statement details (Name, Sex, Married/Unmarried, Address)",
+            "type": "array",
+            "required": true,
+            "description": "Extracted value for Statement details (Name, Sex, Married/Unmarried, Address)"
+        },
+        {
+            "name": "signature_of_employee",
+            "original_name": "Signature of Employee",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Signature of Employee"
+        }
+    ]
+}

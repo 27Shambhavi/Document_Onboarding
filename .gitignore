@@ -44,4 +44,4 @@ tmp/
 *.key
 
 # Generated test files
-multipage_document_test.pdf
+multipage_document_test.pdfdata/processed/

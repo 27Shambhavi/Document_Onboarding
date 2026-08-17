@@ -1,0 +1,48 @@
+{
+    "document_type": "10th_mark_sheet",
+    "display_name": "10th Mark sheet",
+    "fields": [
+        {
+            "name": "tenth_name",
+            "original_name": "tenth_name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for tenth_name"
+        },
+        {
+            "name": "tenth_marks",
+            "original_name": "tenth_marks",
+            "type": "number",
+            "required": true,
+            "description": "Extracted value for tenth_marks"
+        },
+        {
+            "name": "tenth_yop",
+            "original_name": "tenth_yop",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for tenth_yop"
+        },
+        {
+            "name": "school_name",
+            "original_name": "School Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for School Name"
+        },
+        {
+            "name": "arrear_marks_accepted",
+            "original_name": "Arrear marks accepted",
+            "type": "boolean",
+            "required": true,
+            "description": "Extracted value for Arrear marks accepted"
+        },
+        {
+            "name": "board_name",
+            "original_name": "Board Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Board Name"
+        }
+    ]
+}

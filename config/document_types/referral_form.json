@@ -1,0 +1,55 @@
+{
+    "document_type": "referral_form",
+    "display_name": "Referral form",
+    "fields": [
+        {
+            "name": "ifbl_logo",
+            "original_name": "IFBL LOGO",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for IFBL LOGO"
+        },
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "date_of_birth",
+            "original_name": "Date of Birth",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for Date of Birth"
+        },
+        {
+            "name": "current_location",
+            "original_name": "Current Location",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Current Location"
+        },
+        {
+            "name": "manager_name",
+            "original_name": "Manager name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Manager name"
+        },
+        {
+            "name": "manager_employee_id",
+            "original_name": "Manager Employee ID",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Manager Employee ID"
+        },
+        {
+            "name": "manager_signature",
+            "original_name": "Manager signature",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Manager signature"
+        }
+    ]
+}
