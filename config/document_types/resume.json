@@ -1,0 +1,53 @@
+{
+    "document_type": "resume",
+    "fields": [
+        {
+            "name": "full_name",
+            "type": "string",
+            "required": true
+        },
+        {
+            "name": "email",
+            "type": "string",
+            "required": false
+        },
+        {
+            "name": "phone",
+            "type": "string",
+            "required": false
+        },
+        {
+            "name": "address",
+            "type": "string",
+            "required": false
+        },
+        {
+            "name": "education",
+            "type": "array",
+            "required": false
+        },
+        {
+            "name": "skills",
+            "type": "array",
+            "required": false
+        },
+        {
+            "name": "experience",
+            "type": "array",
+            "required": false
+        },
+        {
+            "name": "projects",
+            "type": "array",
+            "required": false
+        },
+        {
+            "name": "certifications",
+            "type": "array",
+            "required": false
+        }
+    ],
+    "metadata": {
+        "description": "Candidate resume or CV"
+    }
+}

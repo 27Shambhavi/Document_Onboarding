@@ -1,0 +1,28 @@
+{
+    "document_type": "employee_photo",
+    "fields": [
+        {
+            "name": "photo_present",
+            "type": "boolean",
+            "required": true
+        },
+        {
+            "name": "face_detected",
+            "type": "boolean",
+            "required": true
+        },
+        {
+            "name": "face_count",
+            "type": "integer",
+            "required": true
+        },
+        {
+            "name": "image_quality",
+            "type": "string",
+            "required": true
+        }
+    ],
+    "metadata": {
+        "description": "Employee profile photograph"
+    }
+}

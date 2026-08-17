@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+openai
+pydantic
+pydantic-settings
+pypdf
+python-docx
+pillow
+pymupdf

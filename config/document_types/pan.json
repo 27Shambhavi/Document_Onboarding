@@ -1,0 +1,30 @@
+{
+    "document_type": "pan",
+    "fields": [
+        {
+            "name": "pan_number",
+            "type": "string",
+            "required": true,
+            "pattern": "^[A-Z]{5}[0-9]{4}[A-Z]$",
+            "normalize": "remove_all_whitespace"
+        },
+        {
+            "name": "name",
+            "type": "string",
+            "required": true
+        },
+        {
+            "name": "father_name",
+            "type": "string",
+            "required": false
+        },
+        {
+            "name": "date_of_birth",
+            "type": "date",
+            "required": false
+        }
+    ],
+    "metadata": {
+        "description": "Indian PAN card"
+    }
+}
