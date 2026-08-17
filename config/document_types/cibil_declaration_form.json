@@ -1,0 +1,27 @@
+{
+    "document_type": "cibil_declaration_form",
+    "display_name": "Cibil Declaration form",
+    "fields": [
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "current_address",
+            "original_name": "Current Address",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Current Address"
+        },
+        {
+            "name": "signature",
+            "original_name": "Signature",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Signature"
+        }
+    ]
+}

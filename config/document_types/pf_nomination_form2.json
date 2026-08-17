@@ -1,0 +1,104 @@
+{
+    "document_type": "pf_nomination_form2",
+    "display_name": "PF Nomination Form\u20132",
+    "fields": [
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "father_name",
+            "original_name": "Father name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Father name"
+        },
+        {
+            "name": "dob",
+            "original_name": "DOB",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for DOB"
+        },
+        {
+            "name": "address",
+            "original_name": "Address",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Address"
+        },
+        {
+            "name": "sex",
+            "original_name": "Sex",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Sex"
+        },
+        {
+            "name": "marital_status",
+            "original_name": "Marital status",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Marital status"
+        },
+        {
+            "name": "account_number",
+            "original_name": "Account Number",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Account Number"
+        },
+        {
+            "name": "current_address",
+            "original_name": "Current address",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Current address"
+        },
+        {
+            "name": "nominee_name",
+            "original_name": "Nominee Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Name"
+        },
+        {
+            "name": "nominee_address",
+            "original_name": "Nominee Address",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Address"
+        },
+        {
+            "name": "nominee_relationship",
+            "original_name": "Nominee Relationship",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Relationship"
+        },
+        {
+            "name": "nominee_total_share",
+            "original_name": "Nominee Total Share",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Nominee Total Share"
+        },
+        {
+            "name": "signature_in_part_a",
+            "original_name": "Signature in Part A",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Signature in Part A"
+        },
+        {
+            "name": "signature_in_part_b",
+            "original_name": "Signature in Part B",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Signature in Part B"
+        }
+    ]
+}

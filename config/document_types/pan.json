@@ -1,30 +1,34 @@
 {
     "document_type": "pan",
+    "display_name": "PAN",
     "fields": [
         {
-            "name": "pan_number",
+            "name": "pan_name",
+            "original_name": "pan_name",
             "type": "string",
             "required": true,
-            "pattern": "^[A-Z]{5}[0-9]{4}[A-Z]$",
-            "normalize": "remove_all_whitespace"
+            "description": "Extracted value for pan_name"
         },
         {
-            "name": "name",
-            "type": "string",
-            "required": true
-        },
-        {
-            "name": "father_name",
-            "type": "string",
-            "required": false
-        },
-        {
-            "name": "date_of_birth",
+            "name": "pan_dob",
+            "original_name": "pan_dob",
             "type": "date",
-            "required": false
+            "required": true,
+            "description": "Extracted value for pan_dob"
+        },
+        {
+            "name": "pan_number",
+            "original_name": "pan_number",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for pan_number"
+        },
+        {
+            "name": "pan_father_name",
+            "original_name": "pan_father_name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for pan_father_name"
         }
-    ],
-    "metadata": {
-        "description": "Indian PAN card"
-    }
+    ]
 }

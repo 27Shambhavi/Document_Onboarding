@@ -1,0 +1,62 @@
+{
+    "document_type": "cibil_consentauthorization_form",
+    "display_name": "Cibil Consent/Authorization form",
+    "fields": [
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "dob",
+            "original_name": "DOB",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for DOB"
+        },
+        {
+            "name": "pan_no",
+            "original_name": "PAN no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for PAN no"
+        },
+        {
+            "name": "full_current_address",
+            "original_name": "Full current Address",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Full current Address"
+        },
+        {
+            "name": "mobile_no",
+            "original_name": "Mobile no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Mobile no"
+        },
+        {
+            "name": "bank_name",
+            "original_name": "Bank Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Bank Name"
+        },
+        {
+            "name": "bank_account_number",
+            "original_name": "Bank Account Number",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Bank Account Number"
+        },
+        {
+            "name": "signature",
+            "original_name": "Signature",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Signature"
+        }
+    ]
+}

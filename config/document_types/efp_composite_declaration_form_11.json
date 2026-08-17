@@ -1,0 +1,118 @@
+{
+    "document_type": "efp_composite_declaration_form_11",
+    "display_name": "EFP Composite Declaration form 11",
+    "fields": [
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "father_name",
+            "original_name": "Father name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Father name"
+        },
+        {
+            "name": "dob",
+            "original_name": "DOB",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for DOB"
+        },
+        {
+            "name": "gender",
+            "original_name": "Gender",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Gender"
+        },
+        {
+            "name": "marital_status",
+            "original_name": "Marital Status",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Marital Status"
+        },
+        {
+            "name": "spouse_name_if_married",
+            "original_name": "Spouse name if Married",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Spouse name if Married"
+        },
+        {
+            "name": "email_id",
+            "original_name": "Email id",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Email id"
+        },
+        {
+            "name": "mobile_no",
+            "original_name": "Mobile no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Mobile no"
+        },
+        {
+            "name": "name_as_per_bank",
+            "original_name": "Name as per Bank",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name as per Bank"
+        },
+        {
+            "name": "bank_ac_no",
+            "original_name": "Bank AC no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Bank AC no"
+        },
+        {
+            "name": "ifsc_code",
+            "original_name": "IFSC code",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for IFSC code"
+        },
+        {
+            "name": "name_as_per_aadhar",
+            "original_name": "Name as per Aadhar",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name as per Aadhar"
+        },
+        {
+            "name": "aadhar_no",
+            "original_name": "Aadhar no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Aadhar no"
+        },
+        {
+            "name": "name_as_per_pan",
+            "original_name": "Name as per PAN",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name as per PAN"
+        },
+        {
+            "name": "pan_no",
+            "original_name": "PAN no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for PAN no"
+        },
+        {
+            "name": "signature",
+            "original_name": "Signature",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Signature"
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 {
-    "document_type": "employee_photo",
-    "display_name": "Employee Photo",
+    "document_type": "nominee_photo",
+    "display_name": "Nominee Photo",
     "fields": [
         {
             "name": "face_detectedyn",

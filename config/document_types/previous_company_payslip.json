@@ -1,0 +1,48 @@
+{
+    "document_type": "previous_company_payslip",
+    "display_name": "Previous Company payslip",
+    "fields": [
+        {
+            "name": "name",
+            "original_name": "Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Name"
+        },
+        {
+            "name": "company_name",
+            "original_name": "Company Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Company Name"
+        },
+        {
+            "name": "salary_month",
+            "original_name": "Salary Month",
+            "type": "number",
+            "required": true,
+            "description": "Extracted value for Salary Month"
+        },
+        {
+            "name": "net_pay",
+            "original_name": "Net Pay",
+            "type": "number",
+            "required": true,
+            "description": "Extracted value for Net Pay"
+        },
+        {
+            "name": "uan_no",
+            "original_name": "UAN no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for UAN no"
+        },
+        {
+            "name": "esi_no",
+            "original_name": "ESI no",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for ESI no"
+        }
+    ]
+}

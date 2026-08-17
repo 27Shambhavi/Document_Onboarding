@@ -1,0 +1,48 @@
+{
+    "document_type": "12th_mark_sheet",
+    "display_name": "12th Mark sheet",
+    "fields": [
+        {
+            "name": "twelfth_name",
+            "original_name": "twelfth_name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for twelfth_name"
+        },
+        {
+            "name": "twelfth_yop",
+            "original_name": "twelfth_yop",
+            "type": "date",
+            "required": true,
+            "description": "Extracted value for twelfth_yop"
+        },
+        {
+            "name": "twelfth_marks",
+            "original_name": "twelfth_marks",
+            "type": "number",
+            "required": true,
+            "description": "Extracted value for twelfth_marks"
+        },
+        {
+            "name": "arrear_marks_accepted",
+            "original_name": "Arrear marks accepted",
+            "type": "boolean",
+            "required": true,
+            "description": "Extracted value for Arrear marks accepted"
+        },
+        {
+            "name": "school_name",
+            "original_name": "School Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for School Name"
+        },
+        {
+            "name": "board_name",
+            "original_name": "Board Name",
+            "type": "string",
+            "required": true,
+            "description": "Extracted value for Board Name"
+        }
+    ]
+}
