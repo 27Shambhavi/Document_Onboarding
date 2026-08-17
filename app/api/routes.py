@@ -4,245 +4,649 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    File,
+    HTTPException,
+    UploadFile,
+)
 
 from app.schemas.registry import schema_registry
-from app.services.classification.document_classifier import document_classifier
-from app.services.extraction.document_extractor import document_extractor
-from app.services.ingestion.blueprint_parser import blueprint_parser
-from app.services.ingestion.document_loader import save_document
-from app.services.ingestion.pdf_processor import pdf_processor
-from app.services.quality.quality_checker import quality_checker
-from app.services.schema_registry import schema_registry_service
-from app.services.segmentation.document_segmenter import document_segmenter
-from app.services.validation.field_validator import field_validator
 
-router = APIRouter(tags=["Document Onboarding & Intelligence"])
+from app.services.classification.document_classifier import (
+    document_classifier,
+)
+
+from app.services.extraction.document_extractor import (
+    document_extractor,
+)
+
+from app.services.ingestion.blueprint_parser import (
+    blueprint_parser,
+)
+
+from app.services.ingestion.document_loader import (
+    save_document,
+)
+
+from app.services.ingestion.pdf_processor import (
+    pdf_processor,
+)
+
+from app.services.quality.quality_checker import (
+    quality_checker,
+)
+
+from app.services.schema_registry import (
+    schema_registry_service,
+)
+
+from app.services.segmentation.document_segmenter import (
+    document_segmenter,
+)
+
+from app.services.validation.field_validator import (
+    field_validator,
+)
+
+
+router = APIRouter(
+    tags=["Document Onboarding & Intelligence"]
+)
 
 
 # =====================================================================
-# 1. COMPANY BLUEPRINT REGISTRATION ENDPOINTS
+# 1. COMPANY BLUEPRINT REGISTRATION
 # =====================================================================
 
 
 @router.post("/company/register-blueprint-json")
-async def register_blueprint_json(payload: dict):
-  """Registers document requirements directly from a JSON blueprint."""
-  try:
-    master_schemas = blueprint_parser.parse_raw_dict(payload)
-    result = schema_registry_service.save_blueprint(master_schemas)
-    # Reload in-memory schema registry so new types are recognized immediately
-    schema_registry.load_schemas()
-    return result
-  except Exception as e:
-    raise HTTPException(status_code=400, detail=str(e))
+async def register_blueprint_json(
+    payload: dict,
+):
+    """
+    Register document requirements directly
+    from a JSON blueprint.
+
+    After registration:
+        1. Schemas are saved.
+        2. Schema registry is reloaded.
+        3. Classifier is refreshed.
+    """
+
+    try:
+
+        master_schemas = (
+            blueprint_parser.parse_raw_dict(
+                payload
+            )
+        )
+
+        result = (
+            schema_registry_service.save_blueprint(
+                master_schemas
+            )
+        )
+
+        # Reload dynamic schemas
+        schema_registry.load_schemas()
+
+        # Refresh classifier so newly registered
+        # document types are immediately recognized
+        document_classifier.refresh()
+
+        return result
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
 
 
 @router.post("/company/register-blueprint-doc")
-async def register_blueprint_doc(file: UploadFile = File(...)):
-  """Uploads .docx requirement file, extracts document structure, and generates schemas."""
-  try:
-    content = await file.read()
-    filename_lower = file.filename.lower()
+async def register_blueprint_doc(
+    file: UploadFile = File(...),
+):
+    """
+    Upload a company document blueprint.
 
-    if filename_lower.endswith(".docx") or filename_lower.endswith(".doc"):
-      master_schemas = blueprint_parser.parse_docx(content)
-    elif filename_lower.endswith(".json"):
-      raw_data = json.loads(content.decode("utf-8"))
-      master_schemas = blueprint_parser.parse_raw_dict(raw_data)
-    else:
-      raise HTTPException(
-          status_code=400,
-          detail="Unsupported file format. Please upload a .docx, .doc, or .json file.",
-      )
+    Supported:
+        .docx
+        .doc
+        .json
+    """
 
-    result = schema_registry_service.save_blueprint(master_schemas)
-    # Reload in-memory schema registry
-    schema_registry.load_schemas()
-    return result
-  except HTTPException:
-    raise
-  except Exception as e:
-    raise HTTPException(status_code=400, detail=str(e))
+    try:
+
+        content = await file.read()
+
+        filename_lower = (
+            file.filename.lower()
+            if file.filename
+            else ""
+        )
+
+        # ---------------------------------------------
+        # DOCX / DOC
+        # ---------------------------------------------
+
+        if (
+            filename_lower.endswith(".docx")
+            or filename_lower.endswith(".doc")
+        ):
+
+            master_schemas = (
+                blueprint_parser.parse_docx(
+                    content
+                )
+            )
+
+        # ---------------------------------------------
+        # JSON
+        # ---------------------------------------------
+
+        elif filename_lower.endswith(".json"):
+
+            raw_data = json.loads(
+                content.decode("utf-8")
+            )
+
+            master_schemas = (
+                blueprint_parser.parse_raw_dict(
+                    raw_data
+                )
+            )
+
+        else:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported file format. "
+                    "Please upload a .docx, .doc, "
+                    "or .json file."
+                ),
+            )
+
+        # ---------------------------------------------
+        # SAVE BLUEPRINT
+        # ---------------------------------------------
+
+        result = (
+            schema_registry_service.save_blueprint(
+                master_schemas
+            )
+        )
+
+        # ---------------------------------------------
+        # RELOAD REGISTRY
+        # ---------------------------------------------
+
+        schema_registry.load_schemas()
+
+        # ---------------------------------------------
+        # REFRESH CLASSIFIER
+        # ---------------------------------------------
+
+        document_classifier.refresh()
+
+        return result
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
 
 
 # =====================================================================
-# 2. HELPER FUNCTIONS FOR CONCURRENT PROCESSING
+# 2. CONCURRENT PAGE PROCESSING
 # =====================================================================
 
 
-async def _process_single_page(page_number: int, image_path: str) -> Dict:
-  """Async worker: Performs quality check and classification concurrently for a single page."""
-  loop = asyncio.get_running_loop()
+async def _process_single_page(
+    page_number: int,
+    image_path: str,
+) -> Dict[str, Any]:
+    """
+    Process one page.
 
-  # Load image bytes in thread pool
-  image_bytes = await loop.run_in_executor(
-      None, pdf_processor.image_to_bytes, image_path
-  )
+    Each page independently performs:
 
-  # Run quality check
-  quality_result = await loop.run_in_executor(
-      None, quality_checker.check, image_bytes
-  )
+        image loading
+             ↓
+        quality check
+             ↓
+        classification
 
-  if quality_result.get("quality") == "BAD":
+    This function is executed concurrently
+    for all pages using asyncio.gather().
+    """
+
+    loop = asyncio.get_running_loop()
+
+    # =================================================
+    # LOAD IMAGE
+    # =================================================
+
+    image_bytes = await loop.run_in_executor(
+        None,
+        pdf_processor.image_to_bytes,
+        image_path,
+    )
+
+    # =================================================
+    # QUALITY CHECK
+    # =================================================
+
+    quality_result = await loop.run_in_executor(
+        None,
+        quality_checker.check,
+        image_bytes,
+    )
+
+    # =================================================
+    # BAD QUALITY
+    # =================================================
+
+    if (
+        quality_result.get("quality")
+        == "BAD"
+    ):
+
+        return {
+            "page_number": page_number,
+            "quality": quality_result,
+            "classification": {
+                "document_type": "unknown",
+                "confidence": 0.0,
+                "reason": (
+                    "Quality check failed"
+                ),
+            },
+            "image_path": image_path,
+        }
+
+    # =================================================
+    # CLASSIFICATION
+    # =================================================
+
+    classification = await loop.run_in_executor(
+        None,
+        document_classifier.classify,
+        image_bytes,
+    )
+
     return {
         "page_number": page_number,
         "quality": quality_result,
-        "classification": {
-            "document_type": "unknown",
-            "confidence": 0.0,
-            "reason": "Quality check failed",
-        },
+        "classification": classification,
         "image_path": image_path,
     }
 
-  # Run classification
-  classification = await loop.run_in_executor(
-      None, document_classifier.classify, image_bytes
-  )
 
-  return {
-      "page_number": page_number,
-      "quality": quality_result,
-      "classification": classification,
-      "image_path": image_path,
-  }
+# =====================================================================
+# 3. CONCURRENT DOCUMENT EXTRACTION + VALIDATION
+# =====================================================================
 
 
 async def _extract_and_validate_group(
-    group: Dict, page_results: List[Dict]
-) -> Dict:
-  """Async worker: Extracts and validates a grouped multi-page document."""
-  loop = asyncio.get_running_loop()
-  document_type = group["document_type"]
-  pages = group["pages"]
+    group: Dict[str, Any],
+    page_results: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    Process one logical document group.
 
-  if document_type == "unknown":
-    return {
-        "document_type": "unknown",
-        "pages": pages,
-        "status": "UNSUPPORTED_DOCUMENT",
-    }
+    Example:
 
-  # Dynamic schema lookup
-  schema = schema_registry.get(document_type)
-  if schema is None:
+        Resume pages [1, 2, 3]
+
+    are treated as ONE document.
+
+    Extraction receives all pages together.
+    """
+
+    loop = asyncio.get_running_loop()
+
+    document_type = group[
+        "document_type"
+    ]
+
+    pages = group[
+        "pages"
+    ]
+
+    # =================================================
+    # UNKNOWN DOCUMENT
+    # =================================================
+
+    if document_type == "unknown":
+
+        return {
+            "document_type": "unknown",
+            "pages": pages,
+            "status": "UNSUPPORTED_DOCUMENT",
+        }
+
+    # =================================================
+    # DYNAMIC SCHEMA LOOKUP
+    # =================================================
+
+    schema = schema_registry.get(
+        document_type
+    )
+
+    if schema is None:
+
+        return {
+            "document_type": document_type,
+            "pages": pages,
+            "status": "SCHEMA_NOT_FOUND",
+        }
+
+    # =================================================
+    # GET ALL PAGES BELONGING TO THIS DOCUMENT
+    # =================================================
+
+    group_page_results = (
+        document_segmenter.get_group_pages(
+            group,
+            page_results,
+        )
+    )
+
+    # =================================================
+    # PREPARE ALL DOCUMENT IMAGES
+    # =================================================
+
+    document_images: List[
+        Tuple[bytes, str]
+    ] = []
+
+    for page in group_page_results:
+
+        image_bytes = await loop.run_in_executor(
+            None,
+            pdf_processor.image_to_bytes,
+            page["image_path"],
+        )
+
+        document_images.append(
+            (
+                image_bytes,
+                "jpeg",
+            )
+        )
+
+    # =================================================
+    # DYNAMIC FIELDS
+    # =================================================
+
+    fields = [
+        field.model_dump()
+        for field in schema.fields
+    ]
+
+    # =================================================
+    # MULTI-PAGE EXTRACTION
+    # =================================================
+
+    extracted_data = await loop.run_in_executor(
+        None,
+        document_extractor.extract,
+        document_images,
+        document_type,
+        fields,
+    )
+
+    # =================================================
+    # VALIDATION
+    # =================================================
+
+    validation = await loop.run_in_executor(
+        None,
+        field_validator.validate,
+        extracted_data,
+        fields,
+    )
+
+    # =================================================
+    # CLASSIFICATION CONFIDENCE
+    # =================================================
+
+    classification_confidences = [
+        page.get(
+            "classification",
+            {},
+        ).get(
+            "confidence",
+            0.0,
+        )
+        for page in group_page_results
+    ]
+
+    if classification_confidences:
+
+        average_confidence = (
+            sum(
+                classification_confidences
+            )
+            / len(
+                classification_confidences
+            )
+        )
+
+    else:
+
+        average_confidence = 0.0
+
+    # =================================================
+    # DOCUMENT STATUS
+    # =================================================
+
+    if validation.get("valid"):
+
+        document_status = "SUCCESS"
+
+    else:
+
+        document_status = "PARTIAL"
+
+    # =================================================
+    # FINAL DOCUMENT RESULT
+    # =================================================
+
     return {
         "document_type": document_type,
         "pages": pages,
-        "status": "SCHEMA_NOT_FOUND",
+        "status": document_status,
+        "classification": {
+            "confidence": round(
+                average_confidence,
+                4,
+            )
+        },
+        "validation": validation,
+        "extracted_data": extracted_data,
     }
-
-  # Prepare image bytes for all pages in this group
-  group_page_results = document_segmenter.get_group_pages(group, page_results)
-  document_images: List[Tuple[bytes, str]] = []
-
-  for page in group_page_results:
-    image_bytes = await loop.run_in_executor(
-        None, pdf_processor.image_to_bytes, page["image_path"]
-    )
-    document_images.append((image_bytes, "jpeg"))
-
-  fields = [field.model_dump() for field in schema.fields]
-
-  # Run extraction via Qwen VLM
-  extracted_data = await loop.run_in_executor(
-      None,
-      document_extractor.extract,
-      document_images,
-      document_type,
-      fields,
-  )
-
-  # Validate against registered schema
-  validation = await loop.run_in_executor(
-      None, field_validator.validate, extracted_data, fields
-  )
-
-  # Compute average classification confidence
-  classification_confidences = [
-      p.get("classification", {}).get("confidence", 0.0)
-      for p in group_page_results
-  ]
-  avg_confidence = (
-      sum(classification_confidences) / len(classification_confidences)
-      if classification_confidences
-      else 0.0
-  )
-
-  return {
-      "document_type": document_type,
-      "pages": pages,
-      "status": "SUCCESS" if validation.get("valid") else "PARTIAL",
-      "classification": {"confidence": round(avg_confidence, 4)},
-      "validation": validation,
-      "extracted_data": extracted_data,
-  }
 
 
 # =====================================================================
-# 3. MAIN DOCUMENT PROCESSING ENDPOINT (CONCURRENT PIPELINE)
+# 4. MAIN DOCUMENT PROCESSING ENDPOINT
 # =====================================================================
 
 
 @router.post("/documents/process")
-async def process_document(file: UploadFile = File(...)):
-  """Concurrent Document Processing Pipeline: Ingestion -> Parallel Quality/Classification -> Grouping -> Parallel Extraction -> Validation."""
-  request_id = f"REQ-{uuid.uuid4().hex[:12].upper()}"
+async def process_document(
+    file: UploadFile = File(...),
+):
+    """
+    Concurrent document onboarding pipeline.
 
-  try:
-    # 1. Save Document
-    file_path = await save_document(file)
-    extension = Path(file_path).suffix.lower()
+    Flow:
 
-    if extension != ".pdf":
-      raise HTTPException(
-          status_code=400,
-          detail="For the current version, please upload a PDF document.",
-      )
+        Upload
+          ↓
+        Request ID
+          ↓
+        Save PDF
+          ↓
+        PDF → ALL page images
+          ↓
+        CONCURRENT page processing
+          ├── Quality
+          └── Classification
+          ↓
+        Group pages
+          ↓
+        CONCURRENT document processing
+          ├── Multi-page extraction
+          └── Validation
+          ↓
+        Final JSON
+    """
 
-    # 2. PDF to Page Images
-    loop = asyncio.get_running_loop()
-    page_images = await loop.run_in_executor(
-        None, pdf_processor.pdf_to_images, file_path
+    request_id = (
+        f"REQ-{uuid.uuid4().hex[:12].upper()}"
     )
 
-    if not page_images:
-      raise HTTPException(
-          status_code=400,
-          detail="The uploaded PDF contains no readable pages.",
-      )
+    try:
 
-    # 3. Parallel Page-Level Quality & Classification (asyncio.gather)
-    page_tasks = [
-        _process_single_page(idx, img_path)
-        for idx, img_path in enumerate(page_images, start=1)
-    ]
-    page_results = await asyncio.gather(*page_tasks)
+        # =================================================
+        # 1. SAVE ORIGINAL DOCUMENT
+        # =================================================
 
-    # Sort results by page number
-    page_results = sorted(page_results, key=lambda x: x["page_number"])
+        file_path = await save_document(
+            file
+        )
 
-    # 4. Logical Page Grouping / Segmentation
-    document_groups = document_segmenter.group_pages(page_results)
+        extension = Path(
+            file_path
+        ).suffix.lower()
 
-    # 5. Parallel Document Group Extraction & Dynamic Validation
-    group_tasks = [
-        _extract_and_validate_group(group, page_results)
-        for group in document_groups
-    ]
-    documents = await asyncio.gather(*group_tasks)
+        # =================================================
+        # 2. PDF VALIDATION
+        # =================================================
 
-    # 6. Final Structured Response
-    return {
-        "request_id": request_id,
-        "status": "PROCESSED",
-        "total_pages": len(page_images),
-        "documents": documents,
-    }
+        if extension != ".pdf":
 
-  except HTTPException:
-    raise
-  except Exception as e:
-    raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "For the current version, "
+                    "please upload a PDF document."
+                ),
+            )
+
+        # =================================================
+        # 3. PDF → PAGE IMAGES
+        # =================================================
+
+        loop = asyncio.get_running_loop()
+
+        page_images = await loop.run_in_executor(
+            None,
+            pdf_processor.pdf_to_images,
+            file_path,
+        )
+
+        if not page_images:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "The uploaded PDF contains "
+                    "no readable pages."
+                ),
+            )
+
+        # =================================================
+        # 4. CONCURRENT PAGE PROCESSING
+        # =================================================
+
+        page_tasks = [
+            _process_single_page(
+                page_number,
+                image_path,
+            )
+            for page_number, image_path
+            in enumerate(
+                page_images,
+                start=1,
+            )
+        ]
+
+        page_results = await asyncio.gather(
+            *page_tasks
+        )
+
+        # Keep pages in original order
+        page_results = sorted(
+            page_results,
+            key=lambda x: x[
+                "page_number"
+            ],
+        )
+
+        # =================================================
+        # 5. GROUP / SEGMENT PAGES
+        # =================================================
+
+        document_groups = (
+            document_segmenter.group_pages(
+                page_results
+            )
+        )
+
+        # =================================================
+        # 6. CONCURRENT DOCUMENT EXTRACTION
+        # =================================================
+
+        group_tasks = [
+            _extract_and_validate_group(
+                group,
+                page_results,
+            )
+            for group in document_groups
+        ]
+
+        documents = await asyncio.gather(
+            *group_tasks
+        )
+
+        # =================================================
+        # 7. FINAL RESPONSE
+        # =================================================
+
+        return {
+            "request_id": request_id,
+            "status": "PROCESSED",
+            "total_pages": len(
+                page_images
+            ),
+            "documents": documents,
+        }
+
+    # =====================================================
+    # HTTP EXCEPTIONS
+    # =====================================================
+
+    except HTTPException:
+        raise
+
+    # =====================================================
+    # UNEXPECTED ERRORS
+    # =====================================================
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )

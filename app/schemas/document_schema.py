@@ -1,39 +1,34 @@
-from typing import Any
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class FieldDefinition(BaseModel):
     """
-    Dynamic definition of a document field.
+    Represents one extraction parameter defined by the
+    central document_types.json file.
 
-    All document-specific rules come from JSON.
+    Example:
+        "resume_name"
+        "pan_number"
+        "aadhar_number"
     """
 
     name: str
 
-    type: str = "string"
-
-    required: bool = True
-
-    pattern: str | None = None
-
-    description: str | None = None
-
-    default: Any = None
-
-    normalize: str | None = None
-
 
 class DocumentSchema(BaseModel):
     """
-    Complete schema for one document type.
+    Represents one document type and its extraction parameters.
+
+    Example:
+
+    document_type = "Resume"
+
+    fields = [
+        FieldDefinition(name="resume_name"),
+        FieldDefinition(name="resume_email"),
+        ...
+    ]
     """
 
     document_type: str
-
     fields: list[FieldDefinition]
-
-    metadata: dict[str, Any] = Field(
-        default_factory=dict
-    )

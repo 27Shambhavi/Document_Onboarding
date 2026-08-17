@@ -1,0 +1,216 @@
+{
+    "Resume": [
+        "resume_name",
+        "resume_email",
+        "resume_mobile_no",
+        "resume_current_address",
+        "resume_father_name",
+        "Date of Birth",
+        "Gender",
+        "Marital Status"
+    ],
+    "Employee Photo": [
+        "Face detected(Y/N)"
+    ],
+    "PAN": [
+        "pan_name",
+        "pan_dob",
+        "pan_number",
+        "pan_father_name"
+    ],
+    "Aadhar": [
+        "aadhar_name",
+        "aadhar_dob",
+        "aadhar_number",
+        "aadhar_father_name",
+        "aadhar_address"
+    ],
+    "10th Mark sheet": [
+        "tenth_name",
+        "tenth_marks",
+        "tenth_yop",
+        "School Name",
+        "Arrear marks accepted",
+        "Board Name"
+    ],
+    "12th Mark sheet": [
+        "twelfth_name",
+        "twelfth_yop",
+        "twelfth_marks",
+        "Arrear marks accepted",
+        "School Name",
+        "Board Name"
+    ],
+    "Diploma Mark sheet": [
+        "Name",
+        "Year of Passing",
+        "Check if 2 years or 3 years completed",
+        "Check mark sheet is Original",
+        "Printout mark sheet not acceptable",
+        "All mark sheets in one PDF including Arrear"
+    ],
+    "Graduation Mark sheet / Certificate": [
+        "grad_name",
+        "grad_marks",
+        "grad_yop",
+        "Check mark sheet is Original",
+        "Printout mark sheet not acceptable",
+        "All mark sheets in one PDF including Arrear",
+        "Degree Name",
+        "University/College Name",
+        "Result Status"
+    ],
+    "NSM Copy": [
+        "Candidate Name",
+        "CTC or Gross or Net take home salary"
+    ],
+    "Referral form": [
+        "IFBL LOGO",
+        "Name",
+        "Date of Birth",
+        "Current Location",
+        "Manager name",
+        "Manager Employee ID",
+        "Manager signature"
+    ],
+    "Interviewer Evaluation Form": [
+        "IFBL LOGO",
+        "Name",
+        "Date of Birth",
+        "Current Location",
+        "Manager name",
+        "Manager Employee ID",
+        "Manager signature"
+    ],
+    "Application for Employment": [
+        "IFBL LOGO",
+        "Name",
+        "Photo",
+        "DOB",
+        "Age",
+        "Email id",
+        "Gender",
+        "AADHAR no",
+        "PAN no",
+        "Current address",
+        "Mobile no",
+        "Permanent Address",
+        "Experience details if Experienced",
+        "No Experience details if Fresher",
+        "Family details (Name, Relationship, DOB, Age, Dependent Y/N)",
+        "Educational details (Course, Institution, Year of Passing)",
+        "Declaration (Candidate name and Candidate Signature)"
+    ],
+    "Cibil Consent/Authorization form": [
+        "Name",
+        "DOB",
+        "PAN no",
+        "Full current Address",
+        "Mobile no",
+        "Bank Name",
+        "Bank Account Number",
+        "Signature"
+    ],
+    "EFP Composite Declaration form 11": [
+        "Name",
+        "Father name",
+        "DOB",
+        "Gender",
+        "Marital Status",
+        "Spouse name if Married",
+        "Email id",
+        "Mobile no",
+        "Name as per Bank",
+        "Bank AC no",
+        "IFSC code",
+        "Name as per Aadhar",
+        "Aadhar no",
+        "Name as per PAN",
+        "PAN no",
+        "Signature"
+    ],
+    "PF Nomination Form–2": [
+        "Name",
+        "Father name",
+        "DOB",
+        "Address",
+        "Sex",
+        "Marital status",
+        "Account Number",
+        "Current address",
+        "Nominee Name",
+        "Nominee Address",
+        "Nominee Relationship",
+        "Nominee Total Share",
+        "Signature in Part A",
+        "Signature in Part B"
+    ],
+    "ESIC Declaration": [
+        "Name",
+        "Father name",
+        "DOB",
+        "Marital Status",
+        "Sex",
+        "Current Address",
+        "Account no",
+        "Mobile no",
+        "Email id",
+        "Nominee Name",
+        "Nominee Address",
+        "Nominee Relationship",
+        "Family Particulars (Name, DOB, Relationship)"
+    ],
+    "Gratuity form F": [
+        "Name",
+        "Nominee Name",
+        "Nominee Age",
+        "Nominee Relationship",
+        "Nominee Proposition",
+        "Statement details (Name, Sex, Married/Unmarried, Address)",
+        "Signature of Employee"
+    ],
+    "Previous Company Experience letter": [
+        "Name",
+        "Company Name",
+        "Designation",
+        "Start Date",
+        "Last Working date"
+    ],
+    "Previous Company payslip": [
+        "Name",
+        "Company Name",
+        "Salary Month",
+        "Net Pay",
+        "UAN no",
+        "ESI no"
+    ],
+    "Cibil Declaration form": [
+        "Name",
+        "Current Address",
+        "Signature"
+    ],
+    "Cheque": [
+        "bank_name",
+        "Name of Candidate",
+        "bank_account_number",
+        "bank_ifsc_code",
+        "branch_name"
+    ],
+    "Passbook": [
+        "Name of Candidate",
+        "bank_name",
+        "bank_account_number",
+        "bank_ifsc_code",
+        "branch_name"
+    ],
+    "Bank Statement": [
+        "Name of Candidate",
+        "bank_name",
+        "bank_account_number",
+        "bank_ifsc_code",
+        "branch_name"
+    ],
+    "Nominee Photo": [
+        "Face detected(Y/N)"
+    ]
+}

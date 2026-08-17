@@ -1,80 +1,172 @@
 import json
 
 from app.services.qwen.client import qwen_client
+from app.schemas.registry import schema_registry
 
 
 class DocumentClassifier:
 
-    SYSTEM_PROMPT = """
+    def __init__(self):
+        self.refresh()
+
+    # =====================================================
+    # REFRESH DOCUMENT TYPES FROM CENTRAL JSON
+    # =====================================================
+
+    def refresh(self):
+
+        self.document_types = []
+        self.document_parameters = {}
+
+        for schema in schema_registry.schemas.values():
+
+            document_type = schema.document_type
+
+            self.document_types.append(
+                document_type
+            )
+
+            self.document_parameters[
+                document_type
+            ] = [
+                field.name
+                for field in schema.fields
+            ]
+
+        # Remove duplicates
+        self.document_types = list(
+            dict.fromkeys(
+                self.document_types
+            )
+        )
+
+        # Canonical lookup
+        self._lookup = {}
+
+        for document_type in self.document_types:
+
+            self._lookup[
+                self._normalize(document_type)
+            ] = document_type
+
+    # =====================================================
+    # NORMALIZE DOCUMENT TYPE
+    # =====================================================
+
+    @staticmethod
+    def _normalize(
+        value: str,
+    ) -> str:
+
+        value = (
+            value
+            .strip()
+            .lower()
+        )
+
+        # Treat Aadhaar/Aadhar as same
+        if value == "aadhaar":
+            value = "aadhar"
+
+        value = (
+            value
+            .replace("_", "")
+            .replace("-", "")
+            .replace(" ", "")
+            .replace("/", "")
+        )
+
+        return value
+
+    # =====================================================
+    # BUILD DYNAMIC SYSTEM PROMPT
+    # =====================================================
+
+    def _build_system_prompt(self) -> str:
+
+        supported_types = []
+
+        for document_type in self.document_types:
+
+            parameters = (
+                self.document_parameters.get(
+                    document_type,
+                    [],
+                )
+            )
+
+            supported_types.append(
+                {
+                    "document_type": document_type,
+                    "parameters": parameters,
+                }
+            )
+
+        supported_json = json.dumps(
+            supported_types,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+        # IMPORTANT:
+        # Do NOT use .format() here.
+        # This avoids conflicts with JSON braces.
+
+        return f"""
 You are an enterprise document classification system.
 
-Classify the document image into EXACTLY ONE type.
+Your task is to classify the document image into EXACTLY ONE
+of the supported document types provided below.
 
-Supported types:
+SUPPORTED DOCUMENT TYPES:
 
-1. aadhaar
-2. pan
-3. resume
-4. 10th_marksheet
-5. 12th_marksheet
-6. employee_photo
-7. unknown
+{supported_json}
 
-Rules:
+IMPORTANT RULES:
 
-aadhaar:
-Indian Aadhaar identity document.
+1. Analyze the actual visual content of the document.
+2. Do NOT rely on the filename.
+3. Choose exactly ONE document type from the supported list.
+4. Do NOT invent a document type.
+5. If the document clearly matches one supported type,
+   select it.
+6. If the document does not confidently match any supported
+   type, return "unknown".
+7. Use the parameter names as additional semantic clues
+   when distinguishing similar document types.
+8. The document_type must exactly match one of the
+   supported document type names.
+9. Return ONLY valid JSON.
 
-pan:
-Indian PAN card.
+Return exactly:
 
-resume:
-CV/resume containing professional,
-educational or career information.
-
-10th_marksheet:
-Class 10 / Secondary / SSC academic marksheet.
-
-12th_marksheet:
-Class 12 / Higher Secondary / HSC academic marksheet.
-
-employee_photo:
-A profile/passport-style photograph of an employee/person.
-
-unknown:
-The document does not confidently belong
-to any supported category.
-
-Analyze the actual visual content.
-Do NOT rely on filename.
-
-Return ONLY:
-
-{
+{{
     "document_type": "...",
     "confidence": 0.0,
     "reason": "short reason"
-}
+}}
 """
 
-    ALLOWED_TYPES = {
-        "aadhaar",
-        "pan",
-        "resume",
-        "10th_marksheet",
-        "12th_marksheet",
-        "employee_photo",
-        "unknown",
-    }
+    # =====================================================
+    # CLASSIFY
+    # =====================================================
 
     def classify(
         self,
         image_bytes: bytes,
     ) -> dict:
 
+        system_prompt = (
+            self._build_system_prompt()
+        )
+
         prompt = """
-Identify what type of document is shown
-in this image.
+Identify the document type shown in this image.
+
+First inspect the complete visual content.
+
+Compare the document against the supported
+document types and their parameters.
 
 Return the classification JSON only.
 """
@@ -82,31 +174,67 @@ Return the classification JSON only.
         response = qwen_client.vision(
             image_bytes=image_bytes,
             prompt=prompt,
-            system_prompt=self.SYSTEM_PROMPT,
+            system_prompt=system_prompt,
         )
 
         try:
 
             result = json.loads(response)
 
-            document_type = result.get(
+            predicted_type = result.get(
                 "document_type",
                 "unknown",
             )
 
-            if document_type not in self.ALLOWED_TYPES:
-                document_type = "unknown"
+            confidence = result.get(
+                "confidence",
+                0.0,
+            )
+
+            reason = result.get(
+                "reason",
+                "",
+            )
+
+            # =================================================
+            # MAP MODEL OUTPUT TO CENTRAL JSON TYPE
+            # =================================================
+
+            normalized_type = (
+                self._normalize(
+                    str(predicted_type)
+                )
+            )
+
+            canonical_type = (
+                self._lookup.get(
+                    normalized_type
+                )
+            )
+
+            # =================================================
+            # UNKNOWN / UNSUPPORTED
+            # =================================================
+
+            if canonical_type is None:
+
+                return {
+                    "document_type": "unknown",
+                    "confidence": 0.0,
+                    "reason": (
+                        "Document type is not "
+                        "supported by the central schema"
+                    ),
+                }
+
+            # =================================================
+            # SUCCESS
+            # =================================================
 
             return {
-                "document_type": document_type,
-                "confidence": result.get(
-                    "confidence",
-                    0.0,
-                ),
-                "reason": result.get(
-                    "reason",
-                    "",
-                ),
+                "document_type": canonical_type,
+                "confidence": confidence,
+                "reason": reason,
             }
 
         except json.JSONDecodeError:
