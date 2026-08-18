@@ -6,10 +6,13 @@ from typing import Any, Dict, List, Tuple
 
 from fastapi import (
     APIRouter,
+    Depends,
     File,
     HTTPException,
     UploadFile,
 )
+
+from app.core.auth import authenticate_client
 
 from app.schemas.registry import schema_registry
 
@@ -55,24 +58,36 @@ router = APIRouter(
 )
 
 
-# =====================================================================
-# 1. COMPANY BLUEPRINT REGISTRATION
-# =====================================================================
+# ================================================================
+# 1. REGISTER COMPANY BLUEPRINT JSON
+# ================================================================
 
 
 @router.post("/company/register-blueprint-json")
 async def register_blueprint_json(
     payload: dict,
+    client: dict = Depends(
+        authenticate_client
+    ),
 ):
     """
-    Register document requirements directly
-    from a JSON blueprint.
-
-    After registration:
-        1. Schemas are saved.
-        2. Schema registry is reloaded.
-        3. Classifier is refreshed.
+    Register a document blueprint for
+    the authenticated company.
     """
+
+    company_id = client.get(
+        "company_id"
+    )
+
+    if not company_id:
+
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Authenticated client does not "
+                "have a company_id"
+            ),
+        )
 
     try:
 
@@ -84,18 +99,23 @@ async def register_blueprint_json(
 
         result = (
             schema_registry_service.save_blueprint(
-                master_schemas
+                master_schemas=master_schemas,
+                company_id=company_id,
             )
         )
 
-        # Reload dynamic schemas
-        schema_registry.load_schemas()
+        # Reload only this company
+        schema_registry.reload_company(
+            company_id
+        )
 
-        # Refresh classifier so newly registered
-        # document types are immediately recognized
-        document_classifier.refresh()
+        return {
+            **result,
+            "company_id": company_id,
+        }
 
-        return result
+    except HTTPException:
+        raise
 
     except Exception as e:
 
@@ -105,36 +125,54 @@ async def register_blueprint_json(
         )
 
 
+# ================================================================
+# 2. REGISTER COMPANY BLUEPRINT FILE
+# ================================================================
+
+
 @router.post("/company/register-blueprint-doc")
 async def register_blueprint_doc(
     file: UploadFile = File(...),
+    client: dict = Depends(
+        authenticate_client
+    ),
 ):
     """
-    Upload a company document blueprint.
-
-    Supported:
-        .docx
-        .doc
-        .json
+    Register company blueprint through
+    JSON / DOCX / DOC.
     """
+
+    company_id = client.get(
+        "company_id"
+    )
+
+    if not company_id:
+
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Authenticated client does not "
+                "have a company_id"
+            ),
+        )
 
     try:
 
         content = await file.read()
 
-        filename_lower = (
+        filename = (
             file.filename.lower()
             if file.filename
             else ""
         )
 
-        # ---------------------------------------------
+        # --------------------------------------------------------
         # DOCX / DOC
-        # ---------------------------------------------
+        # --------------------------------------------------------
 
         if (
-            filename_lower.endswith(".docx")
-            or filename_lower.endswith(".doc")
+            filename.endswith(".docx")
+            or filename.endswith(".doc")
         ):
 
             master_schemas = (
@@ -143,15 +181,26 @@ async def register_blueprint_doc(
                 )
             )
 
-        # ---------------------------------------------
+        # --------------------------------------------------------
         # JSON
-        # ---------------------------------------------
+        # --------------------------------------------------------
 
-        elif filename_lower.endswith(".json"):
+        elif filename.endswith(".json"):
 
-            raw_data = json.loads(
-                content.decode("utf-8")
-            )
+            try:
+
+                raw_data = json.loads(
+                    content.decode(
+                        "utf-8"
+                    )
+                )
+
+            except json.JSONDecodeError:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid JSON blueprint.",
+                )
 
             master_schemas = (
                 blueprint_parser.parse_raw_dict(
@@ -165,34 +214,33 @@ async def register_blueprint_doc(
                 status_code=400,
                 detail=(
                     "Unsupported file format. "
-                    "Please upload a .docx, .doc, "
-                    "or .json file."
+                    "Use .json, .docx or .doc."
                 ),
             )
 
-        # ---------------------------------------------
-        # SAVE BLUEPRINT
-        # ---------------------------------------------
+        # --------------------------------------------------------
+        # SAVE
+        # --------------------------------------------------------
 
         result = (
             schema_registry_service.save_blueprint(
-                master_schemas
+                master_schemas=master_schemas,
+                company_id=company_id,
             )
         )
 
-        # ---------------------------------------------
-        # RELOAD REGISTRY
-        # ---------------------------------------------
+        # --------------------------------------------------------
+        # RELOAD COMPANY
+        # --------------------------------------------------------
 
-        schema_registry.load_schemas()
+        schema_registry.reload_company(
+            company_id
+        )
 
-        # ---------------------------------------------
-        # REFRESH CLASSIFIER
-        # ---------------------------------------------
-
-        document_classifier.refresh()
-
-        return result
+        return {
+            **result,
+            "company_id": company_id,
+        }
 
     except HTTPException:
         raise
@@ -205,35 +253,22 @@ async def register_blueprint_doc(
         )
 
 
-# =====================================================================
-# 2. CONCURRENT PAGE PROCESSING
-# =====================================================================
+# ================================================================
+# 3. PROCESS SINGLE PAGE
+# ================================================================
 
 
 async def _process_single_page(
     page_number: int,
     image_path: str,
+    company_id: str,
 ) -> Dict[str, Any]:
-    """
-    Process one page.
-
-    Each page independently performs:
-
-        image loading
-             ↓
-        quality check
-             ↓
-        classification
-
-    This function is executed concurrently
-    for all pages using asyncio.gather().
-    """
 
     loop = asyncio.get_running_loop()
 
-    # =================================================
-    # LOAD IMAGE
-    # =================================================
+    # --------------------------------------------------------
+    # IMAGE
+    # --------------------------------------------------------
 
     image_bytes = await loop.run_in_executor(
         None,
@@ -241,9 +276,9 @@ async def _process_single_page(
         image_path,
     )
 
-    # =================================================
-    # QUALITY CHECK
-    # =================================================
+    # --------------------------------------------------------
+    # QUALITY
+    # --------------------------------------------------------
 
     quality_result = await loop.run_in_executor(
         None,
@@ -251,12 +286,14 @@ async def _process_single_page(
         image_bytes,
     )
 
-    # =================================================
+    # --------------------------------------------------------
     # BAD QUALITY
-    # =================================================
+    # --------------------------------------------------------
 
     if (
-        quality_result.get("quality")
+        quality_result.get(
+            "quality"
+        )
         == "BAD"
     ):
 
@@ -273,14 +310,15 @@ async def _process_single_page(
             "image_path": image_path,
         }
 
-    # =================================================
-    # CLASSIFICATION
-    # =================================================
+    # --------------------------------------------------------
+    # COMPANY-AWARE CLASSIFICATION
+    # --------------------------------------------------------
 
     classification = await loop.run_in_executor(
         None,
         document_classifier.classify,
         image_bytes,
+        company_id,
     )
 
     return {
@@ -291,26 +329,16 @@ async def _process_single_page(
     }
 
 
-# =====================================================================
-# 3. CONCURRENT DOCUMENT EXTRACTION + VALIDATION
-# =====================================================================
+# ================================================================
+# 4. EXTRACTION + VALIDATION
+# ================================================================
 
 
 async def _extract_and_validate_group(
     group: Dict[str, Any],
     page_results: List[Dict[str, Any]],
+    company_id: str,
 ) -> Dict[str, Any]:
-    """
-    Process one logical document group.
-
-    Example:
-
-        Resume pages [1, 2, 3]
-
-    are treated as ONE document.
-
-    Extraction receives all pages together.
-    """
 
     loop = asyncio.get_running_loop()
 
@@ -322,9 +350,9 @@ async def _extract_and_validate_group(
         "pages"
     ]
 
-    # =================================================
-    # UNKNOWN DOCUMENT
-    # =================================================
+    # --------------------------------------------------------
+    # UNKNOWN
+    # --------------------------------------------------------
 
     if document_type == "unknown":
 
@@ -334,12 +362,13 @@ async def _extract_and_validate_group(
             "status": "UNSUPPORTED_DOCUMENT",
         }
 
-    # =================================================
-    # DYNAMIC SCHEMA LOOKUP
-    # =================================================
+    # --------------------------------------------------------
+    # COMPANY SCHEMA
+    # --------------------------------------------------------
 
     schema = schema_registry.get(
-        document_type
+        document_type=document_type,
+        company_id=company_id,
     )
 
     if schema is None:
@@ -348,11 +377,15 @@ async def _extract_and_validate_group(
             "document_type": document_type,
             "pages": pages,
             "status": "SCHEMA_NOT_FOUND",
+            "reason": (
+                "Document type is not configured "
+                "for this company."
+            ),
         }
 
-    # =================================================
-    # GET ALL PAGES BELONGING TO THIS DOCUMENT
-    # =================================================
+    # --------------------------------------------------------
+    # GROUP PAGES
+    # --------------------------------------------------------
 
     group_page_results = (
         document_segmenter.get_group_pages(
@@ -361,9 +394,9 @@ async def _extract_and_validate_group(
         )
     )
 
-    # =================================================
-    # PREPARE ALL DOCUMENT IMAGES
-    # =================================================
+    # --------------------------------------------------------
+    # IMAGES
+    # --------------------------------------------------------
 
     document_images: List[
         Tuple[bytes, str]
@@ -384,18 +417,18 @@ async def _extract_and_validate_group(
             )
         )
 
-    # =================================================
-    # DYNAMIC FIELDS
-    # =================================================
+    # --------------------------------------------------------
+    # COMPANY FIELDS
+    # --------------------------------------------------------
 
     fields = [
         field.model_dump()
         for field in schema.fields
     ]
 
-    # =================================================
-    # MULTI-PAGE EXTRACTION
-    # =================================================
+    # --------------------------------------------------------
+    # EXTRACTION
+    # --------------------------------------------------------
 
     extracted_data = await loop.run_in_executor(
         None,
@@ -405,9 +438,9 @@ async def _extract_and_validate_group(
         fields,
     )
 
-    # =================================================
+    # --------------------------------------------------------
     # VALIDATION
-    # =================================================
+    # --------------------------------------------------------
 
     validation = await loop.run_in_executor(
         None,
@@ -416,11 +449,11 @@ async def _extract_and_validate_group(
         fields,
     )
 
-    # =================================================
-    # CLASSIFICATION CONFIDENCE
-    # =================================================
+    # --------------------------------------------------------
+    # CONFIDENCE
+    # --------------------------------------------------------
 
-    classification_confidences = [
+    confidences = [
         page.get(
             "classification",
             {},
@@ -431,36 +464,22 @@ async def _extract_and_validate_group(
         for page in group_page_results
     ]
 
-    if classification_confidences:
+    average_confidence = (
+        sum(confidences)
+        / len(confidences)
+        if confidences
+        else 0.0
+    )
 
-        average_confidence = (
-            sum(
-                classification_confidences
-            )
-            / len(
-                classification_confidences
-            )
-        )
+    # --------------------------------------------------------
+    # STATUS
+    # --------------------------------------------------------
 
-    else:
-
-        average_confidence = 0.0
-
-    # =================================================
-    # DOCUMENT STATUS
-    # =================================================
-
-    if validation.get("valid"):
-
-        document_status = "SUCCESS"
-
-    else:
-
-        document_status = "PARTIAL"
-
-    # =================================================
-    # FINAL DOCUMENT RESULT
-    # =================================================
+    document_status = (
+        "SUCCESS"
+        if validation.get("valid")
+        else "PARTIAL"
+    )
 
     return {
         "document_type": document_type,
@@ -477,76 +496,95 @@ async def _extract_and_validate_group(
     }
 
 
-# =====================================================================
-# 4. MAIN DOCUMENT PROCESSING ENDPOINT
-# =====================================================================
+# ================================================================
+# 5. PROCESS CANDIDATE PDF
+# ================================================================
 
 
 @router.post("/documents/process")
 async def process_document(
     file: UploadFile = File(...),
+    client: dict = Depends(
+        authenticate_client
+    ),
 ):
     """
-    Concurrent document onboarding pipeline.
-
-    Flow:
-
-        Upload
-          ↓
-        Request ID
-          ↓
-        Save PDF
-          ↓
-        PDF → ALL page images
-          ↓
-        CONCURRENT page processing
-          ├── Quality
-          └── Classification
-          ↓
-        Group pages
-          ↓
-        CONCURRENT document processing
-          ├── Multi-page extraction
-          └── Validation
-          ↓
-        Final JSON
+    Process a candidate PDF using the
+    authenticated company's blueprint.
     """
 
     request_id = (
         f"REQ-{uuid.uuid4().hex[:12].upper()}"
     )
 
+    company_id = client.get(
+        "company_id"
+    )
+
+    if not company_id:
+
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Authenticated client does not "
+                "have a company_id"
+            ),
+        )
+
     try:
 
-        # =================================================
-        # 1. SAVE ORIGINAL DOCUMENT
-        # =================================================
+        # ========================================================
+        # 1. CHECK COMPANY BLUEPRINT
+        # ========================================================
+
+        company_document_types = (
+            schema_registry
+            .list_company_document_types(
+                company_id
+            )
+        )
+
+        if not company_document_types:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No document blueprint is "
+                    "registered for this company."
+                ),
+            )
+
+        # ========================================================
+        # 2. CHECK FILE
+        # ========================================================
+
+        filename = (
+            file.filename.lower()
+            if file.filename
+            else ""
+        )
+
+        if not filename.endswith(".pdf"):
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Only PDF candidate documents "
+                    "are supported."
+                ),
+            )
+
+        # ========================================================
+        # 3. SAVE PDF
+        # ========================================================
 
         file_path = await save_document(
             file
         )
 
-        extension = Path(
-            file_path
-        ).suffix.lower()
-
-        # =================================================
-        # 2. PDF VALIDATION
-        # =================================================
-
-        if extension != ".pdf":
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "For the current version, "
-                    "please upload a PDF document."
-                ),
-            )
-
-        # =================================================
-        # 3. PDF → PAGE IMAGES
-        # =================================================
+        # ========================================================
+        # 4. PDF → IMAGES
+        # ========================================================
 
         loop = asyncio.get_running_loop()
 
@@ -566,14 +604,15 @@ async def process_document(
                 ),
             )
 
-        # =================================================
-        # 4. CONCURRENT PAGE PROCESSING
-        # =================================================
+        # ========================================================
+        # 5. CONCURRENT PAGE PROCESSING
+        # ========================================================
 
         page_tasks = [
             _process_single_page(
-                page_number,
-                image_path,
+                page_number=page_number,
+                image_path=image_path,
+                company_id=company_id,
             )
             for page_number, image_path
             in enumerate(
@@ -586,7 +625,6 @@ async def process_document(
             *page_tasks
         )
 
-        # Keep pages in original order
         page_results = sorted(
             page_results,
             key=lambda x: x[
@@ -594,9 +632,9 @@ async def process_document(
             ],
         )
 
-        # =================================================
-        # 5. GROUP / SEGMENT PAGES
-        # =================================================
+        # ========================================================
+        # 6. GROUP DOCUMENTS
+        # ========================================================
 
         document_groups = (
             document_segmenter.group_pages(
@@ -604,14 +642,15 @@ async def process_document(
             )
         )
 
-        # =================================================
-        # 6. CONCURRENT DOCUMENT EXTRACTION
-        # =================================================
+        # ========================================================
+        # 7. EXTRACTION + VALIDATION
+        # ========================================================
 
         group_tasks = [
             _extract_and_validate_group(
-                group,
-                page_results,
+                group=group,
+                page_results=page_results,
+                company_id=company_id,
             )
             for group in document_groups
         ]
@@ -620,29 +659,24 @@ async def process_document(
             *group_tasks
         )
 
-        # =================================================
-        # 7. FINAL RESPONSE
-        # =================================================
+        # ========================================================
+        # 8. RESPONSE
+        # ========================================================
 
         return {
             "request_id": request_id,
+            "company_id": company_id,
             "status": "PROCESSED",
             "total_pages": len(
                 page_images
             ),
+            "configured_document_types":
+                company_document_types,
             "documents": documents,
         }
 
-    # =====================================================
-    # HTTP EXCEPTIONS
-    # =====================================================
-
     except HTTPException:
         raise
-
-    # =====================================================
-    # UNEXPECTED ERRORS
-    # =====================================================
 
     except Exception as e:
 
