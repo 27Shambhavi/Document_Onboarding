@@ -30,9 +30,38 @@ TIER_PRESETS = {
 
 
 class Settings(BaseSettings):
+<<<<<<< HEAD
     NVIDIA_API_KEY: str = ""
     NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     NVIDIA_MODEL: str = "qwen/qwen3.5-397b-a17b"
+=======
+
+    # =========================================================
+    # NVIDIA API KEYS
+    # =========================================================
+
+    NVIDIA_API_KEYS: str
+
+    NVIDIA_BASE_URL: str = (
+        "https://integrate.api.nvidia.com/v1"
+    )
+
+    NVIDIA_MODEL: str = (
+        "qwen/qwen3.5-397b-a17b"
+    )
+
+    # =========================================================
+    # JWT
+    # =========================================================
+
+    JWT_SECRET_KEY: str
+
+    JWT_ALGORITHM: str = "HS256"
+
+    # =========================================================
+    # ENV CONFIG
+    # =========================================================
+>>>>>>> a2b377fd29c152cecc437ab8f4b8117a386516e1
 
     active_tier: str = "FREE"
     limits: TierLimits = TIER_PRESETS["FREE"]
@@ -57,5 +86,9 @@ class Settings(BaseSettings):
             return True
         return False
 
+
+# =============================================================
+# GLOBAL SETTINGS INSTANCE
+# =============================================================
 
 settings = Settings()

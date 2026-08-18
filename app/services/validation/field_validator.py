@@ -1,62 +1,93 @@
-import re
-from datetime import datetime
 from typing import Any
 
 
 class FieldValidator:
     """
-    Generic dynamic field validator.
+    Generic schema-driven field validator.
 
-    Document-specific rules are NOT hardcoded here.
-    They come from document-type JSON schemas.
+    The company blueprint defines exactly which fields are
+    required for a document.
+
+    Example:
+
+        ABC → PAN
+
+        pan_name
+        pan_dob
+        pan_number
+        pan_father_name
+
+    The validator:
+
+        1. Checks only configured fields.
+        2. Detects missing values.
+        3. Normalizes basic values.
+        4. Preserves extra information from the extractor
+           OUTSIDE the validated schema from entering the
+           normalized result.
+        5. Does not invent or infer values.
+        6. Does not apply document-specific rules unless
+           those rules are explicitly provided by the schema.
     """
+
+    # =========================================================
+    # VALIDATE
+    # =========================================================
 
     def validate(
         self,
         extracted_data: dict[str, Any],
-        fields: list[dict[str, Any]],
+        fields: list[Any],
     ) -> dict[str, Any]:
 
-        missing_fields = []
-        invalid_fields = []
-        normalized_data = {}
+        missing_fields: list[str] = []
+        invalid_fields: list[str] = []
+        normalized_data: dict[str, Any] = {}
+
+        # -----------------------------------------------------
+        # Safety
+        # -----------------------------------------------------
+
+        if not isinstance(
+            extracted_data,
+            dict,
+        ):
+            extracted_data = {}
+
+        if not isinstance(
+            fields,
+            list,
+        ):
+            fields = []
+
+        # =====================================================
+        # CHECK ONLY BLUEPRINT FIELDS
+        # =====================================================
 
         for field in fields:
 
-            field_name = field["name"]
-
-            field_type = field.get(
-                "type",
-                "string",
+            field_name = self._get_field_name(
+                field
             )
 
-            required = field.get(
-                "required",
-                False,
-            )
-
-            pattern = field.get(
-                "pattern"
-            )
-
-            normalize_rule = field.get(
-                "normalize"
-            )
+            if not field_name:
+                continue
 
             value = extracted_data.get(
                 field_name
             )
 
-            # =========================================
-            # MISSING FIELD
-            # =========================================
+            # =================================================
+            # MISSING
+            # =================================================
 
-            if value is None or value == "":
+            if self._is_missing(
+                value
+            ):
 
-                if required:
-                    missing_fields.append(
-                        field_name
-                    )
+                missing_fields.append(
+                    field_name
+                )
 
                 normalized_data[
                     field_name
@@ -64,376 +95,555 @@ class FieldValidator:
 
                 continue
 
-            # =========================================
-            # BASIC TYPE NORMALIZATION
-            # =========================================
+            # =================================================
+            # TYPE VALIDATION
+            # =================================================
 
-            normalized_value = self._normalize_type(
-                value,
-                field_type,
+            field_type = self._get_field_type(
+                field
             )
 
-            # =========================================
-            # SCHEMA-DRIVEN NORMALIZATION
-            # =========================================
-
-            if normalize_rule:
-
-                normalized_value = (
-                    self._apply_normalization(
-                        normalized_value,
-                        normalize_rule,
-                    )
+            normalized_value, is_valid = (
+                self._normalize_and_validate_type(
+                    value=value,
+                    field_type=field_type,
                 )
+            )
 
-            # =========================================
-            # TYPE VALIDATION
-            # =========================================
-
-            if not self._valid_type(
-                normalized_value,
-                field_type,
-            ):
+            if not is_valid:
 
                 invalid_fields.append(
-                    {
-                        "field": field_name,
-                        "value": value,
-                        "reason": (
-                            f"Expected type "
-                            f"{field_type}"
-                        ),
-                    }
+                    field_name
                 )
 
                 normalized_data[
                     field_name
-                ] = value
+                ] = normalized_value
 
                 continue
 
-            # =========================================
-            # PATTERN VALIDATION
-            # =========================================
-
-            if (
-                pattern
-                and isinstance(
-                    normalized_value,
-                    str,
-                )
-            ):
-
-                if not re.fullmatch(
-                    pattern,
-                    normalized_value,
-                ):
-
-                    invalid_fields.append(
-                        {
-                            "field": field_name,
-                            "value": value,
-                            "reason": (
-                                "Value does not "
-                                "match required pattern"
-                            ),
-                        }
-                    )
-
-                    normalized_data[
-                        field_name
-                    ] = normalized_value
-
-                    continue
-
-            # =========================================
-            # DATE VALIDATION
-            # =========================================
-
-            if field_type == "date":
-
-                if not self._valid_date(
-                    normalized_value
-                ):
-
-                    invalid_fields.append(
-                        {
-                            "field": field_name,
-                            "value": value,
-                            "reason": (
-                                "Invalid date "
-                                "format/value"
-                            ),
-                        }
-                    )
-
-                    normalized_data[
-                        field_name
-                    ] = normalized_value
-
-                    continue
-
-            # =========================================
-            # VALID VALUE
-            # =========================================
+            # =================================================
+            # VALID
+            # =================================================
 
             normalized_data[
                 field_name
             ] = normalized_value
 
+        # =====================================================
+        # FINAL RESULT
+        # =====================================================
+
+        is_valid = (
+            len(missing_fields) == 0
+            and len(invalid_fields) == 0
+        )
+
         return {
-            "valid": (
-                len(missing_fields) == 0
-                and len(invalid_fields) == 0
-            ),
+            "valid": is_valid,
             "missing_fields": missing_fields,
             "invalid_fields": invalid_fields,
             "normalized_data": normalized_data,
         }
 
-    # =====================================================
-    # TYPE NORMALIZATION
-    # =====================================================
+    # =========================================================
+    # GET FIELD NAME
+    # =========================================================
 
-    def _normalize_type(
-        self,
-        value: Any,
-        field_type: str,
-    ) -> Any:
+    @staticmethod
+    def _get_field_name(
+        field: Any,
+    ) -> str:
 
-        if field_type == "string":
+        # -----------------------------------------------------
+        # Dictionary
+        # -----------------------------------------------------
 
-            return str(value).strip()
+        if isinstance(
+            field,
+            dict,
+        ):
 
-        if field_type == "integer":
-
-            if isinstance(value, bool):
-                return value
-
-            try:
-                return int(value)
-
-            except (
-                ValueError,
-                TypeError,
-            ):
-                return value
-
-        if field_type == "number":
-
-            if isinstance(value, bool):
-                return value
-
-            try:
-
-                numeric_value = float(value)
-
-                if numeric_value.is_integer():
-                    return int(
-                        numeric_value
-                    )
-
-                return numeric_value
-
-            except (
-                ValueError,
-                TypeError,
-            ):
-                return value
-
-        if field_type == "boolean":
-
-            if isinstance(
-                value,
-                bool,
-            ):
-                return value
-
-            if isinstance(
-                value,
-                str,
-            ):
-
-                lowered = (
-                    value.strip()
-                    .lower()
+            return str(
+                field.get(
+                    "name",
+                    "",
                 )
+            )
 
-                if lowered in {
-                    "true",
-                    "yes",
-                    "1",
-                }:
-                    return True
+        # -----------------------------------------------------
+        # Pydantic / FieldDefinition object
+        # -----------------------------------------------------
 
-                if lowered in {
-                    "false",
-                    "no",
-                    "0",
-                }:
-                    return False
+        return str(
+            getattr(
+                field,
+                "name",
+                "",
+            )
+        )
 
-            return value
+    # =========================================================
+    # GET FIELD TYPE
+    # =========================================================
 
-        if field_type == "array":
+    @staticmethod
+    def _get_field_type(
+        field: Any,
+    ) -> str:
 
-            if isinstance(
-                value,
-                list,
-            ):
-                return value
+        if isinstance(
+            field,
+            dict,
+        ):
 
-            return [value]
+            return str(
+                field.get(
+                    "type",
+                    "string",
+                )
+            ).lower()
 
-        if field_type == "date":
+        return str(
+            getattr(
+                field,
+                "type",
+                "string",
+            )
+        ).lower()
 
-            return str(value).strip()
+    # =========================================================
+    # REQUIRED CHECK
+    # =========================================================
 
-        return value
+    @staticmethod
+    def _is_required(
+        field: Any,
+    ) -> bool:
 
-    # =====================================================
-    # SCHEMA-DRIVEN NORMALIZATION
-    # =====================================================
+        if isinstance(
+            field,
+            dict,
+        ):
 
-    def _apply_normalization(
+            return bool(
+                field.get(
+                    "required",
+                    False,
+                )
+            )
+
+        return bool(
+            getattr(
+                field,
+                "required",
+                False,
+            )
+        )
+
+    # =========================================================
+    # MISSING VALUE
+    # =========================================================
+
+    def _is_missing(
         self,
         value: Any,
-        rule: str,
-    ) -> Any:
+    ) -> bool:
 
-        if not isinstance(
+        if value is None:
+            return True
+
+        # -----------------------------------------------------
+        # Empty string
+        # -----------------------------------------------------
+
+        if isinstance(
             value,
             str,
         ):
-            return value
-
-        if rule == "remove_spaces":
-
-            return value.replace(
-                " ",
-                "",
-            )
-
-        if rule == "remove_all_whitespace":
-
-            return re.sub(
-                r"\s+",
-                "",
-                value,
-            )
-
-        if rule == "uppercase":
-
-            return value.upper()
-
-        if rule == "lowercase":
-
-            return value.lower()
-
-        if rule == "strip":
-
-            return value.strip()
-
-        return value
-
-    # =====================================================
-    # TYPE VALIDATION
-    # =====================================================
-
-    def _valid_type(
-        self,
-        value: Any,
-        field_type: str,
-    ) -> bool:
-
-        if field_type == "string":
-
-            return isinstance(
-                value,
-                str,
-            )
-
-        if field_type == "integer":
 
             return (
-                isinstance(
-                    value,
-                    int,
-                )
-                and not isinstance(
-                    value,
-                    bool,
-                )
+                value.strip() == ""
             )
 
-        if field_type == "number":
+        # -----------------------------------------------------
+        # Empty list
+        # -----------------------------------------------------
 
-            return (
-                isinstance(
-                    value,
-                    (int, float),
-                )
-                and not isinstance(
-                    value,
-                    bool,
-                )
-            )
+        if isinstance(
+            value,
+            list,
+        ):
 
-        if field_type == "boolean":
+            return len(value) == 0
 
-            return isinstance(
-                value,
-                bool,
-            )
+        # -----------------------------------------------------
+        # Empty dictionary
+        # -----------------------------------------------------
 
-        if field_type == "array":
+        if isinstance(
+            value,
+            dict,
+        ):
 
-            return isinstance(
-                value,
-                list,
-            )
-
-        if field_type == "date":
-
-            return isinstance(
-                value,
-                str,
-            )
-
-        return True
-
-    # =====================================================
-    # DATE VALIDATION
-    # =====================================================
-
-    def _valid_date(
-        self,
-        value: str,
-    ) -> bool:
-
-        formats = [
-            "%d/%m/%Y",
-            "%d-%m-%Y",
-            "%Y-%m-%d",
-            "%d/%m/%y",
-            "%d-%m-%y",
-        ]
-
-        for fmt in formats:
-
-            try:
-
-                datetime.strptime(
-                    value,
-                    fmt,
-                )
-
-                return True
-
-            except ValueError:
-                continue
+            return len(value) == 0
 
         return False
 
+    # =========================================================
+    # TYPE NORMALIZATION + VALIDATION
+    # =========================================================
+
+    def _normalize_and_validate_type(
+        self,
+        value: Any,
+        field_type: str,
+    ) -> tuple[Any, bool]:
+
+        field_type = (
+            field_type
+            .strip()
+            .lower()
+        )
+
+        # =====================================================
+        # STRING
+        # =====================================================
+
+        if field_type in {
+            "string",
+            "str",
+            "text",
+        }:
+
+            if isinstance(
+                value,
+                str,
+            ):
+
+                return (
+                    value.strip(),
+                    True,
+                )
+
+            # Do not silently convert complex objects
+            # into strings.
+
+            if isinstance(
+                value,
+                (
+                    int,
+                    float,
+                    bool,
+                ),
+            ):
+
+                return (
+                    str(value),
+                    True,
+                )
+
+            return (
+                value,
+                False,
+            )
+
+        # =====================================================
+        # NUMBER
+        # =====================================================
+
+        if field_type in {
+            "number",
+            "float",
+            "integer",
+            "int",
+        }:
+
+            # Already numeric
+            if isinstance(
+                value,
+                (
+                    int,
+                    float,
+                ),
+            ) and not isinstance(
+                value,
+                bool,
+            ):
+
+                return (
+                    value,
+                    True,
+                )
+
+            # Numeric string
+            if isinstance(
+                value,
+                str,
+            ):
+
+                cleaned = value.strip()
+
+                try:
+
+                    if field_type in {
+                        "integer",
+                        "int",
+                    }:
+
+                        return (
+                            int(
+                                float(
+                                    cleaned
+                                )
+                            ),
+                            True,
+                        )
+
+                    return (
+                        float(
+                            cleaned
+                        ),
+                        True,
+                    )
+
+                except (
+                    ValueError,
+                    TypeError,
+                ):
+
+                    return (
+                        value,
+                        False,
+                    )
+
+            return (
+                value,
+                False,
+            )
+
+        # =====================================================
+        # BOOLEAN
+        # =====================================================
+
+        if field_type in {
+            "boolean",
+            "bool",
+        }:
+
+            if isinstance(
+                value,
+                bool,
+            ):
+
+                return (
+                    value,
+                    True,
+                )
+
+            if isinstance(
+                value,
+                str,
+            ):
+
+                normalized = (
+                    value
+                    .strip()
+                    .lower()
+                )
+
+                if normalized in {
+                    "true",
+                    "yes",
+                    "y",
+                    "1",
+                    "present",
+                    "detected",
+                }:
+
+                    return (
+                        True,
+                        True,
+                    )
+
+                if normalized in {
+                    "false",
+                    "no",
+                    "n",
+                    "0",
+                    "absent",
+                    "not detected",
+                    "not_detected",
+                }:
+
+                    return (
+                        False,
+                        True,
+                    )
+
+            return (
+                value,
+                False,
+            )
+
+        # =====================================================
+        # ARRAY
+        # =====================================================
+
+        if field_type in {
+            "array",
+            "list",
+        }:
+
+            if isinstance(
+                value,
+                list,
+            ):
+
+                return (
+                    self._normalize_value(
+                        value
+                    ),
+                    True,
+                )
+
+            return (
+                value,
+                False,
+            )
+
+        # =====================================================
+        # DATE
+        # =====================================================
+
+        if field_type == "date":
+
+            # -------------------------------------------------
+            # We intentionally DO NOT transform the date.
+            #
+            # The document's visible representation is
+            # preserved.
+            # -------------------------------------------------
+
+            if isinstance(
+                value,
+                str,
+            ):
+
+                cleaned = value.strip()
+
+                if cleaned:
+
+                    return (
+                        cleaned,
+                        True,
+                    )
+
+            return (
+                value,
+                False,
+            )
+
+        # =====================================================
+        # OBJECT / DICT
+        # =====================================================
+
+        if field_type in {
+            "object",
+            "dict",
+            "json",
+        }:
+
+            if isinstance(
+                value,
+                dict,
+            ):
+
+                return (
+                    self._normalize_value(
+                        value
+                    ),
+                    True,
+                )
+
+            return (
+                value,
+                False,
+            )
+
+        # =====================================================
+        # UNKNOWN TYPE
+        # =====================================================
+
+        # If the schema contains an unknown type, don't reject
+        # the value solely because of that unknown type.
+        #
+        # We still normalize basic containers.
+
+        return (
+            self._normalize_value(
+                value
+            ),
+            True,
+        )
+
+    # =========================================================
+    # BASIC NORMALIZATION
+    # =========================================================
+
+    def _normalize_value(
+        self,
+        value: Any,
+    ) -> Any:
+
+        # -----------------------------------------------------
+        # String
+        # -----------------------------------------------------
+
+        if isinstance(
+            value,
+            str,
+        ):
+
+            return value.strip()
+
+        # -----------------------------------------------------
+        # List
+        # -----------------------------------------------------
+
+        if isinstance(
+            value,
+            list,
+        ):
+
+            return [
+                self._normalize_value(
+                    item
+                )
+                for item in value
+            ]
+
+        # -----------------------------------------------------
+        # Dictionary
+        # -----------------------------------------------------
+
+        if isinstance(
+            value,
+            dict,
+        ):
+
+            return {
+                key: self._normalize_value(
+                    item
+                )
+                for key, item in value.items()
+            }
+
+        return value
+
+
+# =============================================================
+# SINGLETON
+# =============================================================
 
 field_validator = FieldValidator()
