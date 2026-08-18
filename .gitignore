@@ -45,3 +45,6 @@ tmp/
 
 # Generated test files
 multipage_document_test.pdfdata/processed/
+
+data/processed/*.jpg
+data/processed/
