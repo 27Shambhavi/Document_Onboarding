@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 
+from app.api.admin_routes import router as admin_router
 from app.api.billing_routes import billing_router
+from app.api.company_auth_routes import router as company_auth_router
 from app.api.routes import router
 
 app = FastAPI(
@@ -12,12 +14,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Include both Document Intelligence and Billing routers
+# Include Document Intelligence, Auth, Admin, and Billing routers
+app.include_router(company_auth_router)
+app.include_router(admin_router)
 app.include_router(router)
 app.include_router(billing_router)
 
 
-@app.get("/")
+@app.get("/", tags=["Health & Status"])
 def root():
   return {
       "application": "Dynamic Document Intelligence",
@@ -26,6 +30,6 @@ def root():
   }
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health & Status"])
 def health():
   return {"status": "healthy"}

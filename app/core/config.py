@@ -59,13 +59,20 @@ class Settings(BaseSettings):
   NVIDIA_MODEL: str = "qwen/qwen3.5-397b-a17b"
 
   # =========================================================
-  # JWT AUTHENTICATION
+  # JWT & ADMIN AUTHENTICATION
   # =========================================================
 
   JWT_SECRET_KEY: str = os.getenv(
       "JWT_SECRET_KEY", "supersecretjwtkeyforauthentication123"
   )
   JWT_ALGORITHM: str = "HS256"
+  ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "adminsecretkey123")
+
+  # =========================================================
+  # DATABASE (POSTGRESQL / SQLITE FALLBACK)
+  # =========================================================
+
+  DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./document_app.db")
 
   # =========================================================
   # SYSTEM TIER
