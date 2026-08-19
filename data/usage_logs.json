@@ -1,0 +1,29 @@
+[
+  {
+    "log_id": "LOG-F2A2825393",
+    "request_id": "REQ-9C1DE5F2625B",
+    "company_id": "ABC",
+    "total_pages": 25,
+    "signature_checks_count": 0,
+    "cost_incurred": 125.0,
+    "timestamp": "2026-08-19T06:35:22.074641+00:00"
+  },
+  {
+    "log_id": "LOG-668896BAEF",
+    "request_id": "REQ-646C5C36B30D",
+    "company_id": "ABC",
+    "total_pages": 25,
+    "signature_checks_count": 0,
+    "cost_incurred": 250.0,
+    "timestamp": "2026-08-19T06:38:39.044494+00:00"
+  },
+  {
+    "log_id": "LOG-D0BB8C0CA9",
+    "request_id": "REQ-3887B62CA63A",
+    "company_id": "ABC",
+    "total_pages": 25,
+    "signature_checks_count": 12,
+    "cost_incurred": 370.0,
+    "timestamp": "2026-08-19T06:48:11.683616+00:00"
+  }
+]

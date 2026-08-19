@@ -1,0 +1,8 @@
+{
+  "ABC": {
+    "company_id": "ABC",
+    "company_name": "Company ABC",
+    "is_signature_addon_enabled": true,
+    "created_at": "2026-08-19T06:12:13.130595+00:00"
+  }
+}
