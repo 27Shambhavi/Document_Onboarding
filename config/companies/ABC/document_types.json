@@ -1,21 +1,69 @@
 {
-    "pan": {
-        "document_type": "pan",
-        "display_name": "pan",
+    "aadhaar_card": {
+        "document_type": "aadhaar_card",
+        "display_name": "aadhaar_card",
         "fields": [
             {
-                "name": "pan_name",
-                "original_name": "pan_name",
+                "name": "full_name",
+                "original_name": "full_name",
                 "type": "string",
                 "required": true,
-                "description": "Extracted value for pan_name"
+                "description": "Extracted value for full_name"
             },
             {
-                "name": "pan_dob",
-                "original_name": "pan_dob",
-                "type": "date",
+                "name": "date_of_birth",
+                "original_name": "date_of_birth",
+                "type": "string",
                 "required": true,
-                "description": "Extracted value for pan_dob"
+                "description": "Extracted value for date_of_birth"
+            },
+            {
+                "name": "gender",
+                "original_name": "gender",
+                "type": "string",
+                "required": true,
+                "description": "Extracted value for gender"
+            },
+            {
+                "name": "aadhaar_number",
+                "original_name": "aadhaar_number",
+                "type": "string",
+                "required": true,
+                "description": "Extracted value for aadhaar_number"
+            },
+            {
+                "name": "address",
+                "original_name": "address",
+                "type": "string",
+                "required": true,
+                "description": "Extracted value for address"
+            }
+        ]
+    },
+    "pan_card": {
+        "document_type": "pan_card",
+        "display_name": "pan_card",
+        "fields": [
+            {
+                "name": "full_name",
+                "original_name": "full_name",
+                "type": "string",
+                "required": true,
+                "description": "Extracted value for full_name"
+            },
+            {
+                "name": "father_name",
+                "original_name": "father_name",
+                "type": "string",
+                "required": true,
+                "description": "Extracted value for father_name"
+            },
+            {
+                "name": "date_of_birth",
+                "original_name": "date_of_birth",
+                "type": "string",
+                "required": true,
+                "description": "Extracted value for date_of_birth"
             },
             {
                 "name": "pan_number",
@@ -23,47 +71,6 @@
                 "type": "string",
                 "required": true,
                 "description": "Extracted value for pan_number"
-            },
-            {
-                "name": "pan_father_name",
-                "original_name": "pan_father_name",
-                "type": "string",
-                "required": true,
-                "description": "Extracted value for pan_father_name"
-            }
-        ]
-    },
-    "aadhar": {
-        "document_type": "aadhar",
-        "display_name": "aadhar",
-        "fields": [
-            {
-                "name": "aadhar_name",
-                "original_name": "aadhar_name",
-                "type": "string",
-                "required": true,
-                "description": "Extracted value for aadhar_name"
-            },
-            {
-                "name": "aadhar_dob",
-                "original_name": "aadhar_dob",
-                "type": "date",
-                "required": true,
-                "description": "Extracted value for aadhar_dob"
-            },
-            {
-                "name": "aadhar_number",
-                "original_name": "aadhar_number",
-                "type": "string",
-                "required": true,
-                "description": "Extracted value for aadhar_number"
-            },
-            {
-                "name": "aadhar_address",
-                "original_name": "aadhar_address",
-                "type": "string",
-                "required": true,
-                "description": "Extracted value for aadhar_address"
             }
         ]
     },
@@ -72,53 +79,60 @@
         "display_name": "resume",
         "fields": [
             {
-                "name": "resume_name",
-                "original_name": "resume_name",
+                "name": "full_name",
+                "original_name": "full_name",
                 "type": "string",
                 "required": true,
-                "description": "Extracted value for resume_name"
+                "description": "Extracted value for full_name"
             },
             {
-                "name": "resume_email",
-                "original_name": "resume_email",
+                "name": "email",
+                "original_name": "email",
                 "type": "string",
                 "required": true,
-                "description": "Extracted value for resume_email"
+                "description": "Extracted value for email"
             },
             {
-                "name": "resume_mobile_no",
-                "original_name": "resume_mobile_no",
+                "name": "phone_number",
+                "original_name": "phone_number",
                 "type": "string",
                 "required": true,
-                "description": "Extracted value for resume_mobile_no"
+                "description": "Extracted value for phone_number"
             },
             {
-                "name": "resume_address",
-                "original_name": "resume_address",
+                "name": "education",
+                "original_name": "education",
                 "type": "string",
                 "required": true,
-                "description": "Extracted value for resume_address"
+                "description": "Extracted value for education"
             },
             {
-                "name": "resume_skills",
-                "original_name": "resume_skills",
-                "type": "array",
-                "required": true,
-                "description": "Extracted value for resume_skills"
-            },
-            {
-                "name": "resume_education",
-                "original_name": "resume_education",
+                "name": "skills",
+                "original_name": "skills",
                 "type": "string",
                 "required": true,
-                "description": "Extracted value for resume_education"
+                "description": "Extracted value for skills"
             },
             {
-                "name": "resume_experience",
-                "original_name": "resume_experience",
+                "name": "work_experience",
+                "original_name": "work_experience",
                 "type": "string",
-                "required": true,
-                "description": "Extracted value for resume_experience"
+                "required": false,
+                "description": "Extracted value for work_experience"
+            },
+            {
+                "name": "projects",
+                "original_name": "projects",
+                "type": "string",
+                "required": false,
+                "description": "Extracted value for projects"
+            },
+            {
+                "name": "certifications",
+                "original_name": "certifications",
+                "type": "string",
+                "required": false,
+                "description": "Extracted value for certifications"
             }
         ]
     }
