@@ -1,6 +1,6 @@
 # 📄 Enterprise Document Intelligence & Automated Onboarding Platform 🚀
 
-An enterprise-grade, multi-tenant document onboarding platform engineered with **FastAPI**, **PostgreSQL**, **SQLAlchemy**, **Dual-Context JWT Authentication**, **Dynamic Blueprint Ingestion**, **Single-Pass Vision Inference (Qwen 3.5 VL)**, **Zero-Latency Signature Verification**, and an **Asynchronous Usage Metering & Billing Engine**[cite: 2].
+An enterprise-grade, multi-tenant document onboarding platform engineered with **FastAPI**, **PostgreSQL**, **SQLAlchemy**, **Dual-Context JWT Authentication**, **Dynamic Blueprint Ingestion**, **Single-Pass Vision Inference (Qwen Max)**, **Zero-Latency Signature Verification**, and an **Asynchronous Usage Metering & Billing Engine**[cite: 2].
 
 The system allows platform administrators to govern tenant onboarding and dynamic pricing rates, enables active companies to define custom extraction blueprints, and processes multi-page candidate PDF bundles with automated quality inspection, field extraction, contiguous page stitching, signature/stamp verification, and real-time transaction billing[cite: 2].
 
