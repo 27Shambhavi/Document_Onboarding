@@ -52,5 +52,41 @@
     "signature_checks_count": 11,
     "cost_incurred": 360.0,
     "timestamp": "2026-08-19T09:20:42.053143+00:00"
+  },
+  {
+    "log_id": "LOG-81A2E1465C",
+    "request_id": "REQ-01F2F827899C",
+    "company_id": "TECHNOVA",
+    "total_pages": 25,
+    "signature_checks_count": 0,
+    "cost_incurred": 250.0,
+    "timestamp": "2026-08-20T06:29:58.270505+00:00"
+  },
+  {
+    "log_id": "LOG-3F5ECC5465",
+    "request_id": "REQ-75729A6EE9EC",
+    "company_id": "TECHNOVA",
+    "total_pages": 19,
+    "signature_checks_count": 0,
+    "cost_incurred": 190.0,
+    "timestamp": "2026-08-20T07:27:10.162025+00:00"
+  },
+  {
+    "log_id": "LOG-31C3A7524D",
+    "request_id": "REQ-6E50BEA87121",
+    "company_id": "TECHNOVA",
+    "total_pages": 25,
+    "signature_checks_count": 0,
+    "cost_incurred": 250.0,
+    "timestamp": "2026-08-20T08:50:32.399665+00:00"
+  },
+  {
+    "log_id": "LOG-7E7C24B925",
+    "request_id": "REQ-F780514F1AF1",
+    "company_id": "TECHNOVA",
+    "total_pages": 25,
+    "signature_checks_count": 0,
+    "cost_incurred": 250.0,
+    "timestamp": "2026-08-20T09:15:17.358184+00:00"
   }
 ]

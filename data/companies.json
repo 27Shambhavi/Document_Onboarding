@@ -4,5 +4,11 @@
     "company_name": "Company ABC",
     "is_signature_addon_enabled": true,
     "created_at": "2026-08-19T06:12:13.130595+00:00"
+  },
+  "TECHNOVA": {
+    "company_id": "TECHNOVA",
+    "company_name": "Company TECHNOVA",
+    "is_signature_addon_enabled": false,
+    "created_at": "2026-08-20T06:29:39.186155+00:00"
   }
 }

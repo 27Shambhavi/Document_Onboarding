@@ -55,8 +55,16 @@ class Settings(BaseSettings):
   NVIDIA_API_KEY: str = os.getenv(
       "NVIDIA_API_KEY", os.getenv("NVIDIA_API_KEYS", "")
   )
-  NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
-  NVIDIA_MODEL: str = "qwen/qwen3.5-397b-a17b"
+  NVIDIA_BASE_URL: str = os.getenv(
+      "NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"
+  )
+  NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "qwen/qwen3.5-397b-a17b")
+
+  # =========================================================
+  # GUIDELINE REASONING CONFIGURATION
+  # =========================================================
+
+  GUIDELINE_MODEL: str = os.getenv("GUIDELINE_MODEL", "gpt-oss-120b")
 
   # =========================================================
   # JWT & ADMIN AUTHENTICATION

@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.admin_auth import (
@@ -8,15 +9,13 @@ from app.core.admin_auth import (
     create_admin_access_token,
     verify_password,
 )
-
 from app.db.database import get_db
-from app.db.models import Admin, Company
-
+from app.db.models import Admin, Company, InviteToken
 from app.schemas.admin import (
     AdminLoginRequest,
     AdminLoginResponse,
 )
-
+from app.schemas.company_auth import GenerateTokenResponse
 
 router = APIRouter(
     prefix="/admin",
@@ -40,12 +39,9 @@ def admin_login(
     Authenticate an admin using email and password
     and return an admin JWT.
     """
-
     admin = (
         db.query(Admin)
-        .filter(
-            Admin.email == payload.email
-        )
+        .filter(Admin.email == payload.email)
         .first()
     )
 
@@ -80,31 +76,61 @@ def admin_login(
 
 
 # =========================================================
-# 2. GET ALL COMPANIES
+# 2. GENERATE ONE-TIME INVITE TOKEN FOR COMPANY
+# =========================================================
+
+@router.post(
+    "/tokens/generate",
+    response_model=GenerateTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate One-Time Company Registration Token",
+)
+def generate_invite_token(
+    admin: dict = Depends(authenticate_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Generates a unique, single-use registration passkey.
+    Admin copies this token and provides it to the company.
+    Requires no input payload.
+    """
+    unique_key = f"INVITE-{secrets.token_hex(16).upper()}"
+    expiry_time = datetime.now(timezone.utc) + timedelta(hours=48)
+
+    new_token = InviteToken(
+        token=unique_key,
+        is_used=False,
+        expires_at=expiry_time,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_token)
+    db.commit()
+    db.refresh(new_token)
+
+    return GenerateTokenResponse(
+        status="success",
+        token=new_token.token,
+        expires_at=new_token.expires_at,
+        message="One-time registration token generated successfully. Valid for 48 hours.",
+    )
+
+
+# =========================================================
+# 3. GET ALL COMPANIES
 # =========================================================
 
 @router.get("/companies")
 def get_companies(
-    admin: dict = Depends(
-        authenticate_admin
-    ),
+    admin: dict = Depends(authenticate_admin),
     db: Session = Depends(get_db),
 ):
     """
     Return all registered companies.
-
     Admin authentication required.
-
-    Company activity is derived from status because the
-    current PostgreSQL companies table does not contain
-    an is_active column.
     """
-
     companies = (
         db.query(Company)
-        .order_by(
-            Company.created_at.desc()
-        )
+        .order_by(Company.created_at.desc())
         .all()
     )
 
@@ -114,10 +140,9 @@ def get_companies(
             {
                 "company_id": company.company_id,
                 "company_name": company.company_name,
+                "email": company.email,
                 "status": company.status,
-                "is_active": (
-                    company.status == "ACTIVE"
-                ),
+                "is_active": (company.status == "ACTIVE"),
                 "created_at": company.created_at,
                 "approved_at": company.approved_at,
                 "approved_by": company.approved_by,
@@ -128,33 +153,21 @@ def get_companies(
 
 
 # =========================================================
-# 3. APPROVE COMPANY
+# 4. APPROVE COMPANY
 # =========================================================
 
-@router.post(
-    "/companies/{company_id}/approve"
-)
+@router.post("/companies/{company_id}/approve")
 def approve_company(
     company_id: str,
-    admin: dict = Depends(
-        authenticate_admin
-    ),
+    admin: dict = Depends(authenticate_admin),
     db: Session = Depends(get_db),
 ):
     """
     Approve a pending company.
-
-    On approval:
-        status = APPROVED
-        approved_at = current UTC time
-        approved_by = admin ID
     """
-
     company = (
         db.query(Company)
-        .filter(
-            Company.company_id == company_id
-        )
+        .filter(Company.company_id == company_id)
         .first()
     )
 
@@ -163,10 +176,6 @@ def approve_company(
             status_code=404,
             detail="Company not found",
         )
-
-    # -----------------------------------------------------
-    # Already approved
-    # -----------------------------------------------------
 
     if company.status == "ACTIVE":
         return {
@@ -178,16 +187,9 @@ def approve_company(
             "approved_by": company.approved_by,
         }
 
-    # -----------------------------------------------------
-    # Approve
-    # -----------------------------------------------------
-
     company.status = "ACTIVE"
-
-    company.approved_at = datetime.now(
-        timezone.utc
-    )
-
+    company.is_active = True
+    company.approved_at = datetime.now(timezone.utc)
     company.approved_by = admin["admin_id"]
 
     db.commit()
@@ -204,33 +206,21 @@ def approve_company(
 
 
 # =========================================================
-# 4. REJECT COMPANY
+# 5. REJECT COMPANY
 # =========================================================
 
-@router.post(
-    "/companies/{company_id}/reject"
-)
+@router.post("/companies/{company_id}/reject")
 def reject_company(
     company_id: str,
-    admin: dict = Depends(
-        authenticate_admin
-    ),
+    admin: dict = Depends(authenticate_admin),
     db: Session = Depends(get_db),
 ):
     """
     Reject a company application.
-
-    On rejection:
-        status = REJECTED
-        approved_at = NULL
-        approved_by = NULL
     """
-
     company = (
         db.query(Company)
-        .filter(
-            Company.company_id == company_id
-        )
+        .filter(Company.company_id == company_id)
         .first()
     )
 
@@ -240,14 +230,9 @@ def reject_company(
             detail="Company not found",
         )
 
-    # -----------------------------------------------------
-    # Reject
-    # -----------------------------------------------------
-
     company.status = "REJECTED"
-
+    company.is_active = False
     company.approved_at = None
-
     company.approved_by = None
 
     db.commit()
