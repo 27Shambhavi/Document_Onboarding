@@ -24,9 +24,9 @@ class TierLimits(BaseModel):
 
 TIER_PRESETS = {
     "FREE": TierLimits(
-        max_concurrent_candidates=2,
-        global_semaphore_limit=4,
-        max_requests_per_minute=35,
+        max_concurrent_candidates=20,
+        global_semaphore_limit=40,
+        max_requests_per_minute=350,
         retry_attempts=5,
     ),
     "PAID": TierLimits(

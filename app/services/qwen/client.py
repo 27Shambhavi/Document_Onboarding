@@ -4,42 +4,32 @@ import logging
 import os
 import time
 from io import BytesIO
-from typing import Any, Dict
 import httpx
 from openai import AsyncOpenAI
 from PIL import Image
 
-logger = logging.getLogger("qwen_client")
-
+logger = logging.getLogger("alibaba_client")
 
 class UnifiedQwenClient:
     def __init__(self):
-        self.api_key = (
-            os.getenv("NVIDIA_API_KEY")
-            or os.getenv("DASHSCOPE_API_KEY")
-            or os.getenv("OPENAI_API_KEY")
-            or "DUMMY_KEY"
-        )
-
-        raw_url = os.getenv(
-            "OPENAI_BASE_URL",
-            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-        ).rstrip("/")
-        self.base_url = f"{raw_url}/v1" if not raw_url.endswith("/v1") else raw_url
-
-        self.vision_model = os.getenv("NVIDIA_VISION_MODEL", "qwen-vl-max")
-        self.text_model = os.getenv("GUIDELINE_MODEL", "qwen-plus")
-
+        # Using Alibaba DashScope's OpenAI compatible endpoint
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.base_url = os.getenv("OPENAI_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+        
+        # Pulling the ultra-cheap models from your .env
+        self.vision_model = os.getenv("NVIDIA_VISION_MODEL", "qwen-vl-plus")
+        self.text_model = os.getenv("GUIDELINE_MODEL", "qwen-turbo")
+        
         self.client = AsyncOpenAI(
             base_url=self.base_url,
             api_key=self.api_key,
             timeout=httpx.Timeout(90.0, connect=20.0),
-            max_retries=2,
+            max_retries=3,
         )
 
-        # High concurrency gate: 8 parallel streams for sub-15s processing
-        self._gate = asyncio.Semaphore(8)
-        self._min_interval = 0.05
+        # Paid tier allows higher concurrency. Processing 4 pages at a time.
+        self._gate = asyncio.Semaphore(30)
+        self._min_interval = 0.025  
         self._last_call_timestamp = 0.0
 
     async def _throttle(self):
@@ -66,7 +56,7 @@ class UnifiedQwenClient:
         max_retries: int = 3,
     ) -> str:
         b64_image = await asyncio.to_thread(self._optimize_image, image_bytes)
-
+        
         messages = [
             {"role": "system", "content": system_prompt},
             {
@@ -93,7 +83,7 @@ class UnifiedQwenClient:
                     logger.error(f"[VISION ERROR] (Attempt {attempt}/{max_retries}) {exc}")
                     if attempt == max_retries:
                         break
-                    await asyncio.sleep(1.0 * attempt)
+                    await asyncio.sleep(2.0 * attempt)
         return "{}"
 
     async def chat_async(
@@ -106,7 +96,8 @@ class UnifiedQwenClient:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
         ]
-
+        
+        # Text generation is extremely fast, minimal throttling needed
         async with self._gate:
             for attempt in range(1, max_retries + 1):
                 await self._throttle()
@@ -124,6 +115,5 @@ class UnifiedQwenClient:
                         break
                     await asyncio.sleep(1.0 * attempt)
         return ""
-
 
 qwen_client = UnifiedQwenClient()
