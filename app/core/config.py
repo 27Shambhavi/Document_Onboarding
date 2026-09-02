@@ -24,8 +24,8 @@ class TierLimits(BaseModel):
 
 TIER_PRESETS = {
     "FREE": TierLimits(
-        max_concurrent_candidates=20,
-        global_semaphore_limit=40,
+        max_concurrent_candidates=10,
+        global_semaphore_limit=20,
         max_requests_per_minute=350,
         retry_attempts=5,
     ),
@@ -56,15 +56,15 @@ class Settings(BaseSettings):
       "NVIDIA_API_KEY", os.getenv("NVIDIA_API_KEYS", "")
   )
   NVIDIA_BASE_URL: str = os.getenv(
-      "NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"
+      "NVIDIA_BASE_URL", "https://hurricane-brakes-alan-drawings.trycloudflare.com/v1"
   )
-  NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "qwen/qwen3.5-397b-a17b")
+  NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
 
   # =========================================================
   # GUIDELINE REASONING CONFIGURATION
   # =========================================================
 
-  GUIDELINE_MODEL: str = os.getenv("GUIDELINE_MODEL", "gpt-oss-120b")
+  GUIDELINE_MODEL: str = os.getenv("GUIDELINE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
 
   # =========================================================
   # JWT & ADMIN AUTHENTICATION

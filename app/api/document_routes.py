@@ -94,3 +94,20 @@ async def process_document_ocr(
     file_bytes = await file.read()
     result = await run_pipeline(file_bytes, file.filename)
     return result
+
+
+@router.get(
+    "/company/blueprint",
+    summary="Get Company Document Blueprint",
+    status_code=status.HTTP_200_OK,
+)
+async def get_company_blueprint(
+    client: dict = Depends(authenticate_client),
+):
+    company_id = client.get("company_id") or client.get("sub") or "DEFAULT_COMPANY"
+    blueprint = guideline_registry.get_blueprint(company_id)
+    return {
+        "status": "SUCCESS",
+        "company_id": company_id,
+        "blueprint": blueprint,
+    }

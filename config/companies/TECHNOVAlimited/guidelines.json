@@ -1,0 +1,8 @@
+[
+  "Aadhaar Card must contain Name, Date of Birth, Gender, and Aadhaar Number.",
+  "PAN Card must contain Name, Father's Name, Date of Birth, and PAN Number.",
+  "Educational Qualification Document must contain Student/Applicant Name, Date of Birth, Institution/School, Examination/Qualification Details, and Result/Marks.",
+  "Internship/Experience Certificate must contain Employee/Candidate Name, Organization Name, Internship/Employment Role, Start Date, and End Date.",
+  "Driving License must contain Name, Date of Birth, Driving License Number, and License Validity.",
+  "COVID-19 Vaccination Certificate must contain Name, Date of Birth, Vaccination Status, Vaccination Dose Details, and Certificate/Reference Number."
+]

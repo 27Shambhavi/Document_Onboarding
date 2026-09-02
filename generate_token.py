@@ -6,9 +6,9 @@ from app.core.config import settings
 
 
 payload = {
-    "sub": "ABC",
-    "company_id": "ABC",
-    "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+    "sub": "TECHNOVAlimited",
+    "company_id": "TECHNOVAlimited",
+    "exp": datetime.now(timezone.utc) + timedelta(hours=24),
 }
 
 token = jwt.encode(

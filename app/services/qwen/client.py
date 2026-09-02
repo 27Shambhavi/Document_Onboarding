@@ -8,17 +8,17 @@ import httpx
 from openai import AsyncOpenAI
 from PIL import Image
 
-logger = logging.getLogger("alibaba_client")
+logger = logging.getLogger("siliconflow_client")
 
 class UnifiedQwenClient:
     def __init__(self):
-        # Using Alibaba DashScope's OpenAI compatible endpoint
+        # Using SiliconFlow's OpenAI-compatible .com endpoint
         self.api_key = os.getenv("OPENAI_API_KEY")
-        self.base_url = os.getenv("OPENAI_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+        self.base_url = os.getenv("OPENAI_BASE_URL", "https://hurricane-brakes-alan-drawings.trycloudflare.com/v1")
         
-        # Pulling the ultra-cheap models from your .env
-        self.vision_model = os.getenv("NVIDIA_VISION_MODEL", "qwen-vl-plus")
-        self.text_model = os.getenv("GUIDELINE_MODEL", "qwen-turbo")
+        # Pulling the free models for SiliconFlow from your .env
+        self.vision_model = os.getenv("NVIDIA_VISION_MODEL", "alibaba/qwen3.5-flash")
+        self.text_model = os.getenv("GUIDELINE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
         
         self.client = AsyncOpenAI(
             base_url=self.base_url,
@@ -27,9 +27,9 @@ class UnifiedQwenClient:
             max_retries=3,
         )
 
-        # Paid tier allows higher concurrency. Processing 4 pages at a time.
-        self._gate = asyncio.Semaphore(30)
-        self._min_interval = 0.025  
+        # Safe concurrency for SiliconFlow free tier to prevent 429 Too Many Requests
+        self._gate = asyncio.Semaphore(4)  
+        self._min_interval = 0.2  
         self._last_call_timestamp = 0.0
 
     async def _throttle(self):
@@ -97,7 +97,6 @@ class UnifiedQwenClient:
             {"role": "user", "content": prompt},
         ]
         
-        # Text generation is extremely fast, minimal throttling needed
         async with self._gate:
             for attempt in range(1, max_retries + 1):
                 await self._throttle()
