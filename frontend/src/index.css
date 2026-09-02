@@ -1,0 +1,257 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* DARK THEME */
+  :root, .dark {
+    --background: 222 29% 6%;
+    --background-secondary: 222 23% 9%;
+    --foreground: 210 24% 96%;
+
+    --card: 222 21% 10%;
+    --card-elevated: 220 18% 14%;
+    --card-foreground: 210 24% 96%;
+
+    --popover: 222 21% 10%;
+    --popover-foreground: 210 24% 96%;
+
+    --primary: 198 86% 48%;
+    --primary-foreground: 210 24% 98%;
+
+    --secondary: 220 18% 14%;
+    --secondary-foreground: 210 24% 96%;
+
+    --muted: 220 17% 16%;
+    --muted-foreground: 215 13% 68%;
+
+    --accent: 160 70% 43%;
+    --accent-foreground: 210 24% 98%;
+
+    --destructive: 354 76% 57%;
+    --destructive-foreground: 210 24% 98%;
+
+    --border: 219 15% 21%;
+    --input: 219 15% 21%;
+    --ring: 198 86% 48%;
+
+    --radius: 0.5rem;
+
+    /* Custom tokens for DocVerify Dark mode */
+    --paper: #0E1116;
+    --paper-2: #171B21;
+    --ink: #F2F2ED;
+    --ink-soft: #9BA1AB;
+    --line: #2A2E36;
+    --line-strong: #3B404A;
+    --verify: #3FAE84;
+    --verify-soft: rgba(63, 174, 132, 0.16);
+    --amber: #E0954A;
+    --amber-soft: rgba(224, 149, 74, 0.16);
+    --uncleared: #D9695A;
+    --uncleared-soft: rgba(217, 105, 90, 0.16);
+    --overlay: rgba(0, 0, 0, 0.6);
+  }
+
+  /* LIGHT THEME */
+  .light {
+    --background: 210 30% 98%;
+    --background-secondary: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-elevated: 210 28% 96%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 202 82% 42%;
+    --primary-foreground: 210 30% 98%;
+
+    --secondary: 210 28% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 28% 95%;
+    --muted-foreground: 215 16% 42%;
+
+    --accent: 160 64% 38%;
+    --accent-foreground: 210 30% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 30% 98%;
+
+    --border: 214 28% 88%;
+    --input: 214 28% 88%;
+    --ring: 202 82% 42%;
+
+    --radius: 0.5rem;
+
+    /* Custom tokens for DocVerify Light mode */
+    --paper: #F7F7F4;
+    --paper-2: #EFEFEA;
+    --ink: #14181F;
+    --ink-soft: #43474F;
+    --line: #D8D8D2;
+    --line-strong: #B9B9B1;
+    --verify: #1F7A5C;
+    --verify-soft: #E4EFE9;
+    --amber: #C97A2B;
+    --amber-soft: #F6E9DA;
+    --uncleared: #9C3B2E;
+    --uncleared-soft: #F5E4E0;
+    --overlay: rgba(0, 0, 0, 0.4);
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--paper) !important;
+    color: var(--ink) !important;
+    min-height: 100vh;
+    font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    letter-spacing: 0;
+    transition: background-color 0.25s ease, color 0.25s ease;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Make header and sidebar layout match variables */
+  header, aside {
+    background-color: var(--paper-2) !important;
+    border-color: var(--line) !important;
+  }
+
+  header a, header span, header h1, header h2, header h3, header p,
+  aside a, aside span, aside h1, aside h2, aside h3, aside p {
+    color: var(--ink) !important;
+  }
+
+  header .text-muted-foreground, aside .text-muted-foreground {
+    color: var(--ink-soft) !important;
+  }
+
+  header button, header div[class*="border"] {
+    border-color: var(--line) !important;
+    background-color: var(--paper-2) !important;
+    color: var(--ink) !important;
+  }
+
+  aside nav a {
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+    color: var(--ink-soft) !important;
+    transition: all 120ms ease;
+  }
+  aside nav a:hover {
+    background-color: var(--paper) !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
+  }
+
+  aside nav a[class*="text-foreground"], aside nav a[class*="bg-primary"] {
+    background-color: var(--verify-soft) !important;
+    color: var(--verify) !important;
+    border: 1px solid var(--verify) !important;
+  }
+  aside nav a[class*="text-foreground"] svg, aside nav a[class*="bg-primary"] svg {
+    color: var(--verify) !important;
+  }
+
+  input, select, textarea {
+    background-color: hsl(var(--card)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+    border-radius: var(--radius) !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+    font-size: 0.9375rem !important;
+    transition: all 0.2s ease-out !important;
+  }
+
+  .dark input, .dark select, .dark textarea {
+    background-color: rgba(17, 17, 22, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none !important;
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15) !important;
+  }
+
+  .light input:focus, .light select:focus, .light textarea:focus {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.14) !important;
+  }
+
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible, a:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* Custom scrollbars configuration */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Glass Card helper overrides */
+.premium-glass-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-glass-card:hover {
+  border-color: hsl(var(--primary) / 0.22);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px -28px hsl(var(--primary) / 0.5);
+}
+
+.light .premium-glass-card:hover {
+  border-color: hsl(var(--primary) / 0.18);
+  box-shadow: 0 16px 36px -28px hsl(var(--primary) / 0.42);
+}
+
+@layer components {
+  .app-card {
+    @apply rounded-lg border border-border bg-card shadow-sm transition-colors;
+  }
+
+  .app-panel {
+    @apply rounded-lg border border-border bg-card/95 shadow-sm backdrop-blur;
+  }
+
+  .app-icon {
+    @apply inline-flex items-center justify-center rounded-lg border border-border bg-muted text-primary;
+  }
+
+  .app-button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .app-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 text-sm font-semibold text-foreground transition hover:bg-card-elevated disabled:cursor-not-allowed disabled:opacity-50;
+  }
+}
