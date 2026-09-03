@@ -180,7 +180,11 @@ async def _process_guidelines_async_pipeline(request_data: GuidelineCheckRequest
 # 3. FINETECH UPLOAD DATA ENDPOINT (THE ID CONTRACT GATEWAY)
 # ================================================================
 
-@router.post("/finetech/upload_data", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/finetech/upload_data", 
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
 async def finetech_upload_data(
     payload: GuidelineCheckRequest,
     background_tasks: BackgroundTasks,

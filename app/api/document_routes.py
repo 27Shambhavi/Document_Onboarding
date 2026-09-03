@@ -83,6 +83,7 @@ async def register_blueprint_doc(
     "/documents/process",
     summary="Raw OCR Process Document (Direct File Extraction)",
     status_code=status.HTTP_200_OK,
+    include_in_schema=False,  # This hides the endpoint from Swagger UI
 )
 async def process_document_ocr(
     file: UploadFile = File(
@@ -110,4 +111,4 @@ async def get_company_blueprint(
         "status": "SUCCESS",
         "company_id": company_id,
         "blueprint": blueprint,
-    }
+    }
