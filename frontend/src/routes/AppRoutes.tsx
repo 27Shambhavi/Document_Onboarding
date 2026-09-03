@@ -38,7 +38,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRole }
   }
 
   if (role !== allowedRole) {
-    // If wrong role, redirect to appropriate role home
     return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/company/dashboard'} replace />;
   }
 
@@ -149,3 +148,6 @@ export const AppRoutes: React.FC = () => {
     </Routes>
   );
 };
+
+// Providing BOTH named and default export to prevent any import mismatches
+export default AppRoutes;
