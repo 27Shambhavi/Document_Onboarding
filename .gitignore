@@ -48,3 +48,7 @@ multipage_document_test.pdfdata/processed/
 
 data/processed/*.jpg
 data/processed/
+
+# Backups
+data/backups/
+

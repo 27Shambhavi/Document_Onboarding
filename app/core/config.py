@@ -5,18 +5,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
 
-
 # =============================================================
 # TIER LIMITS
 # =============================================================
 
-
 class TierLimits(BaseModel):
-  max_concurrent_candidates: int
-  global_semaphore_limit: int
-  max_requests_per_minute: int
-  retry_attempts: int
-
+    max_concurrent_candidates: int
+    global_semaphore_limit: int
+    max_requests_per_minute: int
+    retry_attempts: int
 
 # =============================================================
 # TIER PRESETS
@@ -37,100 +34,71 @@ TIER_PRESETS = {
     ),
 }
 
-
 # =============================================================
 # APPLICATION SETTINGS
 # =============================================================
 
-
 class Settings(BaseSettings):
 
-  # =========================================================
-  # NVIDIA CONFIGURATIONS (With Fallbacks)
-  # =========================================================
+    # =========================================================
+    # OPENAI COMPATIBLE CONFIGURATIONS (For vLLM Tunnel)
+    # =========================================================
+    
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "EMPTY")
+    OPENAI_BASE_URL: str = os.getenv(
+        "OPENAI_BASE_URL", "https://hurricane-brakes-alan-drawings.trycloudflare.com/v1"
+    )
+    
+    NVIDIA_VISION_MODEL: str = os.getenv("NVIDIA_VISION_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+    GUIDELINE_MODEL: str = os.getenv("GUIDELINE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
 
-  NVIDIA_API_KEYS: str = os.getenv(
-      "NVIDIA_API_KEYS", os.getenv("NVIDIA_API_KEY", "")
-  )
-  NVIDIA_API_KEY: str = os.getenv(
-      "NVIDIA_API_KEY", os.getenv("NVIDIA_API_KEYS", "")
-  )
-  NVIDIA_BASE_URL: str = os.getenv(
-      "NVIDIA_BASE_URL", "https://hurricane-brakes-alan-drawings.trycloudflare.com/v1"
-  )
-  NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+    # =========================================================
+    # JWT & ADMIN AUTHENTICATION
+    # =========================================================
 
-  # =========================================================
-  # GUIDELINE REASONING CONFIGURATION
-  # =========================================================
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "supersecretjwtkeyforauthentication123")
+    JWT_ALGORITHM: str = "HS256"
+    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "adminsecretkey123")
 
-  GUIDELINE_MODEL: str = os.getenv("GUIDELINE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+    # =========================================================
+    # DATABASE (POSTGRESQL - STRICT REQUIREMENT)
+    # =========================================================
 
-  # =========================================================
-  # JWT & ADMIN AUTHENTICATION
-  # =========================================================
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
-  JWT_SECRET_KEY: str = os.getenv(
-      "JWT_SECRET_KEY", "supersecretjwtkeyforauthentication123"
-  )
-  JWT_ALGORITHM: str = "HS256"
-  ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "adminsecretkey123")
+    # =========================================================
+    # SYSTEM TIER
+    # =========================================================
 
-  # =========================================================
-  # DATABASE (POSTGRESQL / SQLITE FALLBACK)
-  # =========================================================
+    active_tier: str = "FREE"
+    limits: TierLimits = TIER_PRESETS["FREE"]
 
-  DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./document_app.db")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-  # =========================================================
-  # SYSTEM TIER
-  # =========================================================
+    def __init__(self, **values):
+        super().__init__(**values)
+        if not self.DATABASE_URL or not self.DATABASE_URL.startswith("postgresql"):
+            raise RuntimeError(
+                "CRITICAL: DATABASE_URL is missing or not configured for PostgreSQL! "
+                "Silent SQLite fallback has been completely disabled."
+            )
+        tier_env = os.getenv("SYSTEM_TIER", "FREE").upper()
+        self.active_tier = tier_env
+        self.limits = TIER_PRESETS.get(tier_env, TIER_PRESETS["FREE"])
 
-  active_tier: str = "FREE"
-  limits: TierLimits = TIER_PRESETS["FREE"]
-
-  # =========================================================
-  # ENVIRONMENT CONFIG
-  # =========================================================
-
-  model_config = SettingsConfigDict(
-      env_file=".env",
-      env_file_encoding="utf-8",
-      extra="ignore",
-  )
-
-  # =========================================================
-  # INITIALIZATION
-  # =========================================================
-
-  def __init__(self, **values):
-    super().__init__(**values)
-
-    # Sync single key with plural key if only one was set
-    if not self.NVIDIA_API_KEY and self.NVIDIA_API_KEYS:
-      self.NVIDIA_API_KEY = self.NVIDIA_API_KEYS.split(",")[0].strip()
-    elif not self.NVIDIA_API_KEYS and self.NVIDIA_API_KEY:
-      self.NVIDIA_API_KEYS = self.NVIDIA_API_KEY
-
-    tier_env = os.getenv("SYSTEM_TIER", "FREE").upper()
-    self.active_tier = tier_env
-    self.limits = TIER_PRESETS.get(tier_env, TIER_PRESETS["FREE"])
-
-  # =========================================================
-  # CHANGE SYSTEM TIER
-  # =========================================================
-
-  def set_tier(self, tier_name: str) -> bool:
-    tier_upper = tier_name.upper()
-    if tier_upper in TIER_PRESETS:
-      self.active_tier = tier_upper
-      self.limits = TIER_PRESETS[tier_upper]
-      return True
-    return False
-
+    def set_tier(self, tier_name: str) -> bool:
+        tier_upper = tier_name.upper()
+        if tier_upper in TIER_PRESETS:
+            self.active_tier = tier_upper
+            self.limits = TIER_PRESETS[tier_upper]
+            return True
+        return False
 
 # =============================================================
 # GLOBAL SETTINGS INSTANCE
 # =============================================================
-
 settings = Settings()
