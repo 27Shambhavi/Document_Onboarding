@@ -1,7 +1,6 @@
 from app.db.database import engine
 from app.db.base import Base
-from app.db.models import Admin, Company
-
+from app.db.models import Admin, Company, InviteToken
 
 print("Creating database tables...")
 

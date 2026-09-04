@@ -1,33 +1,33 @@
 import asyncio
 import base64
 import logging
-import os
 import time
 from io import BytesIO
 import httpx
 from openai import AsyncOpenAI
 from PIL import Image
 
-logger = logging.getLogger("siliconflow_client")
+# Correct absolute import based on your project structure
+from app.core.config import settings
+
+logger = logging.getLogger("vllm_client")
 
 class UnifiedQwenClient:
     def __init__(self):
-        # Using SiliconFlow's OpenAI-compatible .com endpoint
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.base_url = os.getenv("OPENAI_BASE_URL", "https://hurricane-brakes-alan-drawings.trycloudflare.com/v1")
-        
-        # Pulling the free models for SiliconFlow from your .env
-        self.vision_model = os.getenv("NVIDIA_VISION_MODEL", "alibaba/qwen3.5-flash")
-        self.text_model = os.getenv("GUIDELINE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+        # Pulling configurations directly from your centralized settings
+        self.api_key = settings.OPENAI_API_KEY
+        self.base_url = settings.OPENAI_BASE_URL
+        self.vision_model = settings.NVIDIA_VISION_MODEL
+        self.text_model = settings.GUIDELINE_MODEL
         
         self.client = AsyncOpenAI(
             base_url=self.base_url,
             api_key=self.api_key,
-            timeout=httpx.Timeout(90.0, connect=20.0),
+            timeout=httpx.Timeout(120.0, connect=20.0), # Extended for heavy 32B model processing
             max_retries=3,
         )
 
-        # Safe concurrency for SiliconFlow free tier to prevent 429 Too Many Requests
+        # Safe concurrency to manage GPU load
         self._gate = asyncio.Semaphore(4)  
         self._min_interval = 0.2  
         self._last_call_timestamp = 0.0
@@ -43,6 +43,7 @@ class UnifiedQwenClient:
         with Image.open(BytesIO(image_bytes)) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
+            # Downscales massive document scans to prevent context window overflow
             img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
             buffer = BytesIO()
             img.save(buffer, format="JPEG", quality=80, optimize=True)
@@ -76,7 +77,7 @@ class UnifiedQwenClient:
                         model=self.vision_model,
                         messages=messages,
                         temperature=0.01,
-                        max_tokens=1024,
+                        max_tokens=2048, # Increased to capture full JSON extraction payloads
                     )
                     return response.choices[0].message.content or "{}"
                 except Exception as exc:
