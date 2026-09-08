@@ -91,10 +91,20 @@ async def generate_structured_guidelines(raw_text: str) -> List[str]:
 You are an expert compliance rule extractor.
 Analyze the following company document onboarding policy and extract all distinct verification rules.
 
-FORMAT REQUIREMENTS:
-1. Every guideline must be a single string clearly identifying the target document.
-   Example: "Resume must contain Candidate Name, Email, and Mobile Number."
-2. Output STRICTLY a valid JSON array of strings. No conversational prose.
+CRITICAL FORMAT REQUIREMENTS:
+1. ATOMIC RULES: Every element in the JSON array MUST be an INDIVIDUAL, SINGLE-SENTENCE rule string (1 rule per array item).
+   - STRICTLY PROHIBITED: Grouping multiple requirements, bullet points, or paragraphs into one massive chunk.
+   - STRICTLY PROHIBITED: Multi-line strings or multi-sentence paragraphs within a single array element.
+   - Each rule must clearly specify the target document and the concrete validation condition.
+   Example Good Output:
+   [
+     "Resume must contain Candidate Name.",
+     "Resume must contain Email Address and Mobile Number.",
+     "PAN Card must contain a valid 10-character alphanumeric PAN Number.",
+     "Aadhaar Card must contain Date of Birth matching the PAN Card.",
+     "Educational Marksheet must be from an accredited university."
+   ]
+2. Output STRICTLY a valid JSON array of strings. No conversational prose or explanations.
 
 POLICY TEXT:
 \"\"\"
@@ -124,23 +134,52 @@ Respond ONLY with the JSON array:
         parsed_rules = json.loads(clean_json)
 
         if isinstance(parsed_rules, list) and len(parsed_rules) > 0:
-            return [str(rule).strip() for rule in parsed_rules if str(rule).strip()]
+            atomic_rules = []
+            for rule in parsed_rules:
+                rule_str = str(rule).strip()
+                if not rule_str:
+                    continue
+                # Split any multiline or newline-grouped items into distinct individual rules
+                sub_lines = [l.strip().lstrip("-*•0123456789.) ").strip() for l in rule_str.split("\n") if l.strip()]
+                for sub in sub_lines:
+                    # Explode concatenated multi-sentence paragraphs
+                    if len(sub) > 120 and ". " in sub:
+                        sentences = re.split(r'\.\s+(?=[A-Z])', sub)
+                        for s in sentences:
+                            s_clean = s.strip().rstrip(".")
+                            if len(s_clean) > 10:
+                                atomic_rules.append(s_clean + ".")
+                    else:
+                        clean_item = sub if sub.endswith((".", "!", "?")) else sub + "."
+                        if len(clean_item) > 10:
+                            atomic_rules.append(clean_item)
+            if atomic_rules:
+                return atomic_rules
 
     except Exception as e:
         print(f"[WARN] LLM Guideline Extraction endpoint error: {e}. Using deterministic text parser fallback.")
 
-    # Resilient Fallback: Extract line-by-line rules directly from document text
+    # Resilient Fallback: Extract line-by-line rules directly from document text, splitting into atomic sentences
     extracted_lines = []
     for line in raw_text.splitlines():
         line_clean = line.strip(" -*•0123456789.)").strip()
-        if len(line_clean) > 25 and any(
+        if len(line_clean) > 20 and any(
             doc_keyword in line_clean.lower()
-            for doc_keyword in ["must", "should", "require", "contain", "resume", "pan", "aadhaar", "marksheet", "certificate", "bank"]
+            for doc_keyword in ["must", "should", "require", "contain", "resume", "pan", "aadhaar", "marksheet", "certificate", "bank", "passport", "degree", "payslip"]
         ):
-            extracted_lines.append(line_clean)
+            # Explode multi-sentence lines into individual atomic rule items
+            if ". " in line_clean:
+                sentences = re.split(r'\.\s+(?=[A-Z0-9])', line_clean)
+                for s in sentences:
+                    sc = s.strip().rstrip(".")
+                    if len(sc) > 15:
+                        extracted_lines.append(sc + ".")
+            else:
+                clean_item = line_clean if line_clean.endswith((".", "!", "?")) else line_clean + "."
+                extracted_lines.append(clean_item)
 
     if extracted_lines:
-        return extracted_lines[:15]
+        return extracted_lines[:25]
 
     # Standard baseline fallback
     return [

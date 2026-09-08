@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 import secrets
+from typing import Any, List
 
-from sqlalchemy import Boolean, DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -93,6 +95,12 @@ class Company(Base):
         nullable=False,
     )
 
+    signature_unlocked: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -107,6 +115,74 @@ class Company(Base):
     approved_by: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
+    )
+
+    scans: Mapped[List["DocumentScan"]] = relationship(
+        "DocumentScan",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="DocumentScan.created_at.desc()",
+    )
+
+
+# =========================================================
+# DOCUMENT SCAN HISTORY — Task 1
+# =========================================================
+
+class DocumentScan(Base):
+    """
+    Persists every successful OCR extraction to PostgreSQL.
+    Linked to the company that triggered the scan via FK.
+    """
+    __tablename__ = "document_scans"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("companies.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    filename: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+
+    pages_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    # Full OCR extraction JSON payload stored as JSONB for efficient querying
+    extracted_json: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    cost_inr: Mapped[float] = mapped_column(
+        Float,
+        default=0.0,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationships
+    company: Mapped["Company"] = relationship(
+        "Company",
+        back_populates="scans",
     )
 
 

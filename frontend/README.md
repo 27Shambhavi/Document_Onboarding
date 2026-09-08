@@ -1,38 +1,32 @@
-# DocVerify AI Frontend Console
+# React + TypeScript + Vite
 
-This is the React + Vite + TypeScript + Tailwind CSS client console for the Document Onboarding backend service.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-## Prerequisites
+Currently, two official plugins are available:
 
-Ensure you have **Node.js** (v18 or higher) and **npm** installed.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Getting Started
+## React Compiler
 
-1. **Navigate to the frontend directory:**
-   ```bash
-   cd frontend
-   ```
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-2. **Configure Environment Variables:**
-   Rename `.env.example` to `.env` and set the backend API location:
-   ```bash
-   cp .env.example .env
-   ```
-   Modify `VITE_API_BASE_URL` in `.env` if your backend port changes (defaults to `http://localhost:8000`).
+## Expanding the Oxlint configuration
 
-3. **Install Dependencies:**
-   ```bash
-   npm install
-   ```
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
 
-4. **Launch Local Development Server:**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:5173](http://localhost:5173) in your web browser.
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
+```
 
-5. **Build for Production:**
-   ```bash
-   npm run build
-   ```
-   The compiled static folder is created in `dist/`.
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

@@ -16,13 +16,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-# Load environment
-load_dotenv(r"c:\Users\Lenovo\Downloads\Documnet_Onboarding\.env")
+# Load environment from current directory automatically
+load_dotenv()
 postgres_url = os.getenv("DATABASE_URL")
 if not postgres_url or not postgres_url.startswith("postgresql"):
     raise RuntimeError("Valid PostgreSQL DATABASE_URL is required in .env!")
 
-sqlite_db_path = Path(r"c:\Users\Lenovo\Downloads\Documnet_Onboarding\document_app.db")
+# Use local document_app.db from the current working directory
+sqlite_db_path = Path("document_app.db")
 if not sqlite_db_path.exists():
     raise FileNotFoundError(f"SQLite database not found at {sqlite_db_path}")
 

@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "EMPTY")
     OPENAI_BASE_URL: str = os.getenv(
-        "OPENAI_BASE_URL", "https://hurricane-brakes-alan-drawings.trycloudflare.com/v1"
+        "OPENAI_BASE_URL", "https://messaging-critical-consolidated-reservations.trycloudflare.com/v1"
     )
     
     NVIDIA_VISION_MODEL: str = os.getenv("NVIDIA_VISION_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")

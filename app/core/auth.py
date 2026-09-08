@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import Company
+from app.db.models import Admin, Company
 
 
 security = HTTPBearer()
@@ -65,7 +65,31 @@ def authenticate_client(
         )
 
     # =========================================================
-    # 4. GET COMPANY ID FROM JWT
+    # 4. ADMIN PRIVILEGE BYPASS
+    # =========================================================
+
+    if payload.get("role") == "admin" or payload.get("type") == "admin":
+        admin_id = payload.get("admin_id") or payload.get("sub")
+        if admin_id and str(admin_id).isdigit():
+            admin = db.query(Admin).filter(Admin.id == int(admin_id)).first()
+            if admin and not admin.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin account is inactive",
+                )
+
+        return {
+            "authenticated": True,
+            "company_id": "DEFAULT_COMPANY",
+            "company_name": "Platform Administrator",
+            "status": "ACTIVE",
+            "role": "admin",
+            "is_admin": True,
+            "claims": payload,
+        }
+
+    # =========================================================
+    # 5. GET COMPANY ID FROM JWT
     # =========================================================
 
     company_id = payload.get(

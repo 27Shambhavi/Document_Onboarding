@@ -39,7 +39,27 @@ async def save_company_guidelines(
     if not company_id:
         raise HTTPException(status_code=401, detail="Authenticated client has no company_id")
 
-    saved = guideline_registry.save_guidelines(company_id=company_id, guidelines=payload.guidelines)
+    rules_to_save: List[str] = []
+    if payload.guidelines:
+        rules_to_save = [str(g).strip() for g in payload.guidelines if str(g).strip()]
+    elif payload.text:
+        for line in payload.text.splitlines():
+            clean = line.strip().lstrip("-*•0123456789.) ").strip()
+            if clean:
+                rules_to_save.append(clean)
+    elif payload.json_rules:
+        if isinstance(payload.json_rules, list):
+            for r in payload.json_rules:
+                if isinstance(r, str) and r.strip():
+                    rules_to_save.append(r.strip())
+                elif isinstance(r, dict):
+                    rule_val = r.get("rule") or r.get("rule_title") or r.get("description") or str(r)
+                    if rule_val.strip():
+                        rules_to_save.append(rule_val.strip())
+        elif isinstance(payload.json_rules, dict):
+            rules_to_save = [str(v).strip() for v in payload.json_rules.values() if str(v).strip()]
+
+    saved = guideline_registry.save_guidelines(company_id=company_id, guidelines=rules_to_save)
     return {
         "status": "success",
         "company_id": company_id,

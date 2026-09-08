@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.admin_auth import (
@@ -9,6 +10,7 @@ from app.core.admin_auth import (
     create_admin_access_token,
     verify_password,
 )
+from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Admin, Company, InviteToken
 from app.schemas.admin import (
@@ -243,4 +245,62 @@ def reject_company(
         "company_id": company.company_id,
         "status": company.status,
         "is_active": False,
+    }
+
+
+# =========================================================
+# 6. UNLOCK SIGNATURE PREMIUM FEATURE — Task 2
+# =========================================================
+
+class UnlockSignatureRequest(BaseModel):
+    secret_token: str
+
+
+@router.post(
+    "/unlock-signature/{company_id}",
+    summary="Admin: Unlock Signature & Stamp Verification for a company",
+)
+def unlock_signature(
+    company_id: str,
+    payload: UnlockSignatureRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Unlocks the premium Signature & Stamp Verification feature for the given company.
+    Requires a valid admin secret token passed in the request body.
+    No admin JWT required — the secret_token acts as the credential.
+    """
+    if payload.secret_token != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid secret token. Permission denied.",
+        )
+
+    company = (
+        db.query(Company)
+        .filter(Company.company_id == company_id)
+        .first()
+    )
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company '{company_id}' not found.",
+        )
+
+    if company.signature_unlocked:
+        return {
+            "message": "Signature feature already unlocked for this company.",
+            "company_id": company_id,
+            "signature_unlocked": True,
+        }
+
+    company.signature_unlocked = True
+    db.commit()
+    db.refresh(company)
+
+    return {
+        "message": "Signature & Stamp Verification unlocked successfully.",
+        "company_id": company.company_id,
+        "signature_unlocked": company.signature_unlocked,
     }

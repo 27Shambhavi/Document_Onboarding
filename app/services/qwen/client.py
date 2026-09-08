@@ -39,14 +39,14 @@ class UnifiedQwenClient:
             await asyncio.sleep(self._min_interval - elapsed)
         self._last_call_timestamp = time.time()
 
-    def _optimize_image(self, image_bytes: bytes, max_size: int = 1024) -> str:
+    def _optimize_image(self, image_bytes: bytes, max_size: int = 512) -> str:
         with Image.open(BytesIO(image_bytes)) as img:
             if img.mode != "RGB":
                 img = img.convert("RGB")
             # Downscales massive document scans to prevent context window overflow
             img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
             buffer = BytesIO()
-            img.save(buffer, format="JPEG", quality=80, optimize=True)
+            img.save(buffer, format="JPEG", quality=60, optimize=True)
             return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     async def vision_async(
@@ -77,7 +77,7 @@ class UnifiedQwenClient:
                         model=self.vision_model,
                         messages=messages,
                         temperature=0.01,
-                        max_tokens=2048, # Increased to capture full JSON extraction payloads
+                        max_tokens=512, # Increased to capture full JSON extraction payloads
                     )
                     return response.choices[0].message.content or "{}"
                 except Exception as exc:
@@ -106,7 +106,7 @@ class UnifiedQwenClient:
                         model=self.text_model,
                         messages=messages,
                         temperature=0.01,
-                        max_tokens=2048,
+                        max_tokens=512,
                     )
                     return response.choices[0].message.content or ""
                 except Exception as exc:

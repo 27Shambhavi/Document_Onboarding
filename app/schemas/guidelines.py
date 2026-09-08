@@ -49,6 +49,8 @@ WebhookPayload = FinetechWebhookPayload
 class DynamicGuidelinesPayload(BaseModel):
     """Payload model for dynamic policy and guidelines configuration."""
     guidelines: List[str] = Field(default_factory=list)
+    text: Optional[str] = None
+    json_rules: Optional[Any] = None
     rules: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     company_id: Optional[str] = None
     blueprint: Optional[Dict[str, Any]] = Field(default_factory=dict)
