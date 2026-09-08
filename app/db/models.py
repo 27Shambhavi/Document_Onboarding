@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import secrets
-from typing import Any, List
+from typing import Any, List, Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, JSON
 from sqlalchemy.dialects.postgresql import JSONB
@@ -99,6 +99,11 @@ class Company(Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    signature_unlock_token: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

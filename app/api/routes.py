@@ -14,6 +14,8 @@ from fastapi import (
 )
 
 from app.core.auth import authenticate_client
+from app.db.database import get_db
+from app.db.models import Company
 from app.models.billing import storage_manager
 from app.schemas.registry import schema_registry
 from app.services.analytics.usage_service import usage_service
@@ -125,6 +127,21 @@ def _execute_page_inference(
      * Set "signature_confidence": float between 0.80 and 1.0
    - If NO signature or stamp is present:
      * Set "is_signed": false, "signatory_type": "NONE", "signer_name": null, "signature_location": "none", "signature_confidence": 0.0
+"""
+    signature_json_schema = """
+  "signature_verification": {
+    "is_signed": false,
+    "signatory_type": "NONE",
+    "signer_name": null,
+    "signature_location": "none",
+    "signature_confidence": 0.0
+  },"""
+  else:
+    signature_instructions = """
+4. SIGNATURE AND STAMP GATEKEEPING (STRICTLY LOCKED):
+   - SIGNATURE AND STAMP DETECTION IS STRICTLY DISABLED: Do NOT inspect, detect, extract, or verify physical ink signatures, handwriting, or official office stamps.
+   - Always return:
+     "is_signed": false, "signatory_type": "NONE", "signer_name": null, "signature_location": "none", "signature_confidence": 0.0
 """
     signature_json_schema = """
   "signature_verification": {
@@ -329,6 +346,7 @@ async def process_document(
         ),
     ),
     client: dict = Depends(authenticate_client),
+    db: Session = Depends(get_db),
 ):
   request_id = f"REQ-{uuid.uuid4().hex[:12].upper()}"
   company_id = client.get("company_id")
@@ -338,14 +356,15 @@ async def process_document(
         status_code=401, detail="Authenticated client does not have company_id"
     )
 
-  # 1. Check Feature Entitlement
-  company_profile = storage_manager.get_company(company_id)
-  if enable_signature_detection and not company_profile.is_signature_addon_enabled:
+  # 1. Check Feature Entitlement (DB-backed Company record)
+  company_rec = db.query(Company).filter(Company.company_id == company_id).first()
+  is_unlocked = bool(company_rec.signature_unlocked) if company_rec else False
+  if enable_signature_detection and not is_unlocked:
     raise HTTPException(
         status_code=403,
         detail=(
-            "Signature Detection is a premium feature not enabled for your"
-            " company. Please activate this add-on via admin settings."
+            "Signature & Stamp Verification is a locked premium feature. Please"
+            " unlock it via your Billing settings with a single-use token."
         ),
     )
 

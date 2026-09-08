@@ -311,11 +311,62 @@ export const api = {
     return res.data;
   },
 
-  // 6. ADMIN UNLOCK SIGNATURE — Task 2
-  unlockSignature: async (companyId: string, secretToken: string) => {
-    const res = await apiClient.post(`/admin/unlock-signature/${companyId}`, {
-      secret_token: secretToken,
+  // 6. CLIENT UNLOCK SIGNATURE — Single-use company-specific token
+  unlockSignature: async (token: string): Promise<{
+    status: string;
+    company_id: string;
+    signature_unlocked: boolean;
+    message: string;
+  }> => {
+    const res = await apiClient.post('/client/unlock-signature', {
+      token,
     });
+    return res.data;
+  },
+
+  // 7. ADMIN GOVERNANCE & USAGE — New Admin Overhaul
+  getBillingPricing: async (): Promise<{
+    price_per_page: number;
+    price_per_signature_check: number;
+    currency: string;
+    updated_at: string;
+  }> => {
+    const res = await apiClient.get('/admin/billing/pricing');
+    return res.data;
+  },
+
+  getCompanyUsageAdmin: async (companyId: string): Promise<{
+    status: string;
+    company_id: string;
+    company_name: string;
+    email: string;
+    company_status: string;
+    is_active: boolean;
+    signature_unlocked: boolean;
+    signature_unlock_token?: string | null;
+    total_scans: number;
+    total_pages: number;
+    total_revenue_inr: number;
+    recent_scans: Array<{
+      id: number;
+      filename: string;
+      pages_count: number;
+      cost_inr: number;
+      created_at: string | null;
+    }>;
+  }> => {
+    const res = await apiClient.get(`/admin/companies/${companyId}/usage`);
+    return res.data;
+  },
+
+  generateCompanySignatureToken: async (companyId: string): Promise<{
+    status: string;
+    company_id: string;
+    signature_unlock_token: string;
+    signature_unlocked: boolean;
+    message: string;
+  }> => {
+    const res = await apiClient.post(`/admin/companies/${companyId}/generate-signature-token`);
     return res.data;
   },
 };

@@ -54,14 +54,13 @@ export const Billing: React.FC = () => {
   const handleUnlockSignature = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!secretTokenInput.trim()) {
-      setUnlockError('Please enter the Admin Secret Token.');
+      setUnlockError('Please enter your single-use unlock token.');
       return;
     }
     setUnlockLoading(true);
     setUnlockError(null);
     try {
-      const targetCompany = companyId || user?.company_id || 'DEFAULT_COMPANY';
-      const res: any = await api.unlockSignature(targetCompany, secretTokenInput.trim());
+      const res: any = await api.unlockSignature(secretTokenInput.trim());
       if (res?.signature_unlocked) {
         setSignatureUnlocked(true);
         setShowUnlockModal(false);
@@ -69,11 +68,11 @@ export const Billing: React.FC = () => {
         setUnlockSuccessToast(true);
         setTimeout(() => setUnlockSuccessToast(false), 4000);
       } else {
-        setUnlockError('Unlock failed. Please verify credentials.');
+        setUnlockError('Unlock failed. Please verify your token.');
       }
     } catch (err: any) {
       console.error('Unlock signature error:', err);
-      const msg = err?.response?.data?.detail || err?.message || 'Failed to unlock signature feature.';
+      const msg = err?.response?.data?.detail || err?.message || 'Invalid or expired signature unlock token.';
       setUnlockError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setUnlockLoading(false);
@@ -164,10 +163,14 @@ export const Billing: React.FC = () => {
   // Toggle Signature Addon (requires signatureUnlocked to be true)
   const handleToggleAddon = async () => {
     if (!signatureUnlocked) return; // Guard — feature locked
+    const targetCompany = user?.company_id || companyId;
+    if (!targetCompany) {
+      setErrorState('No authenticated company found.');
+      return;
+    }
     const newStatus = !signatureAddonActive;
     setErrorState(null);
     try {
-      const targetCompany = companyId || user?.company_id || 'DEFAULT_COMPANY';
       await api.toggleSignatureAddon(targetCompany, newStatus);
       setSignatureAddonActive(newStatus);
 
@@ -583,19 +586,19 @@ export const Billing: React.FC = () => {
             </div>
 
             <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              Enter the master <strong>ADMIN_SECRET_KEY</strong> to authenticate and unlock neural signature and notary stamp inspection for this organization.
+              Enter the single-use <strong>Unlock Token</strong> provided by your administrator to activate neural signature and notary stamp inspection for this organization. Tokens burn automatically upon activation.
             </p>
 
             <form onSubmit={handleUnlockSignature} className="space-y-4 pt-1">
               <div>
                 <label className="block text-xs font-bold mb-1.5 text-slate-300">
-                  Admin Secret Token
+                  Single-Use Unlock Token
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type="text"
                     autoFocus
-                    placeholder="Enter admin secret key..."
+                    placeholder="e.g., SIG-UNLOCK-A1B2C3D4"
                     value={secretTokenInput}
                     onChange={(e) => setSecretTokenInput(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${

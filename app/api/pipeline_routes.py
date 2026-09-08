@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import authenticate_client
 from app.db.database import get_db
-from app.db.models import DocumentScan
+from app.db.models import Company, DocumentScan
 from app.models.billing import storage_manager
 from app.schemas.guidelines import DocumentFileItem
 from app.services.guidelines.guideline_registry import guideline_registry
@@ -157,6 +157,7 @@ async def _process_single_candidate_stage1(
     filename: str,
     blueprint: Dict[str, Any],
     source_url: Optional[str] = None,
+    signature_unlocked: bool = False,
 ) -> Dict[str, Any]:
 
     req_id = (
@@ -176,6 +177,7 @@ async def _process_single_candidate_stage1(
             filename,
             blueprint,
             source_url,
+            signature_unlocked=signature_unlocked,
         )
 
         files_payload = extraction_output.get(
@@ -234,6 +236,15 @@ async def stage1_extract_ocr(
         client.get("company_id")
         or client.get("sub")
         or "DEFAULT_COMPANY"
+    )
+
+    company_rec = (
+        db.query(Company)
+        .filter(Company.company_id == company_id)
+        .first()
+    )
+    is_signature_unlocked = bool(
+        company_rec.signature_unlocked if company_rec else False
     )
 
     blueprint = (
@@ -365,6 +376,7 @@ async def stage1_extract_ocr(
             fname,
             blueprint,
             source_url,
+            signature_unlocked=is_signature_unlocked,
         )
         for content, fname in candidate_payloads
     ]
@@ -669,6 +681,15 @@ async def audit_candidate_folder(
         or "DEFAULT_COMPANY"
     )
 
+    company_rec = (
+        db.query(Company)
+        .filter(Company.company_id == company_id)
+        .first()
+    )
+    is_signature_unlocked = bool(
+        company_rec.signature_unlocked if company_rec else False
+    )
+
     blueprint = (
         guideline_registry.get_blueprint(
             company_id
@@ -816,6 +837,7 @@ async def audit_candidate_folder(
                 fname,
                 blueprint,
                 source_url,
+                signature_unlocked=is_signature_unlocked,
             )
         )
 
@@ -951,6 +973,15 @@ async def audit_one_click(
         or "DEFAULT_COMPANY"
     )
 
+    company_rec = (
+        db.query(Company)
+        .filter(Company.company_id == company_id)
+        .first()
+    )
+    is_signature_unlocked = bool(
+        company_rec.signature_unlocked if company_rec else False
+    )
+
     blueprint = guideline_registry.get_blueprint(company_id)
     active_guidelines = guideline_registry.get_guidelines(company_id)
 
@@ -1005,7 +1036,7 @@ async def audit_one_click(
         try:
             # Stage 1: OCR
             ocr_res = await _process_single_candidate_stage1(
-                content, fname, blueprint, source_url
+                content, fname, blueprint, source_url, signature_unlocked=is_signature_unlocked
             )
         except Exception as ocr_err:
             logger.error(f"Stage 1 OCR error for {fname}: {ocr_err}")

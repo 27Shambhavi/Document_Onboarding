@@ -10,6 +10,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 BILLING_CONFIG_PATH = DATA_DIR / "billing_config.json"
 USAGE_LOGS_PATH = DATA_DIR / "usage_logs.json"
 COMPANIES_PATH = DATA_DIR / "companies.json"
+ADMIN_CONFIG_PATH = DATA_DIR / "admin_config.json"
 
 
 class CompanyProfile(BaseModel):
@@ -124,6 +125,20 @@ class StorageManager:
     if company_id:
       return [r for r in records if r.company_id == company_id]
     return records
+
+  # --- Admin Secret Key Management ---
+  @classmethod
+  def get_signature_secret(cls, default_secret: str) -> str:
+    data = cls._load_json(ADMIN_CONFIG_PATH, {"signature_secret_token": default_secret})
+    return data.get("signature_secret_token", default_secret)
+
+  @classmethod
+  def update_signature_secret(cls, new_secret: str) -> str:
+    data = cls._load_json(ADMIN_CONFIG_PATH, {})
+    data["signature_secret_token"] = new_secret
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    cls._save_json(ADMIN_CONFIG_PATH, data)
+    return new_secret
 
 
 storage_manager = StorageManager()

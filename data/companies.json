@@ -28,5 +28,17 @@
     "company_name": "Company binjwa",
     "is_signature_addon_enabled": false,
     "created_at": "2026-09-07T13:16:06.666577+00:00"
+  },
+  "DEFAULT_COMPANY": {
+    "company_id": "DEFAULT_COMPANY",
+    "company_name": "Company DEFAULT_COMPANY",
+    "is_signature_addon_enabled": false,
+    "created_at": "2026-09-08T05:28:42.194135+00:00"
+  },
+  "COMP-SIG-BURN-TEST": {
+    "company_id": "COMP-SIG-BURN-TEST",
+    "company_name": "Company COMP-SIG-BURN-TEST",
+    "is_signature_addon_enabled": true,
+    "created_at": "2026-09-08T05:56:42.975433+00:00"
   }
 }

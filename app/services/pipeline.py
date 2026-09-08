@@ -103,6 +103,7 @@ async def _process_single_page(
     page_pixmap_bytes: bytes,
     blueprint: Dict[str, Any],
     source_url: Optional[str] = None,
+    signature_unlocked: bool = False,
 ) -> Dict[str, Any]:
 
     blueprint_str = (
@@ -110,6 +111,25 @@ async def _process_single_page(
         if blueprint
         else "{}"
     )
+
+    if signature_unlocked:
+        signature_task_instruction = """4. SIGNATURE AND STAMP DETECTION (PREMIUM UNLOCKED):
+    - Inspect if this document page contains genuine physical ink signatures, cursive pen handwriting in applicant/authority signature lines, or official circular/rubber office ink stamps.
+    - If genuine manual ink or an official stamp is present, extract "is_signed": true, "signatory_type": "APPLICANT" | "AUTHORITY" | "BOTH", and "signer_name".
+    - If no signature or stamp is present, set "is_signed": false, "signatory_type": "NONE", "signer_name": null."""
+        signature_fields_schema = """
+        "is_signed": true,
+        "signatory_type": "APPLICANT | AUTHORITY | BOTH",
+        "signer_name": "<name_or_null>","""
+    else:
+        signature_task_instruction = """4. SIGNATURE AND STAMP GATEKEEPING (STRICTLY LOCKED):
+    - SIGNATURE AND STAMP DETECTION IS STRICTLY DISABLED: Do NOT inspect, detect, extract, or verify physical ink signatures, handwriting, or official office stamps.
+    - Do NOT flag missing signatures or missing stamps as quality defects (doc_quality_issues must NOT be "missing_stamp").
+    - Always output "is_signed": false, "signatory_type": "NONE", "signer_name": null."""
+        signature_fields_schema = """
+        "is_signed": false,
+        "signatory_type": "NONE",
+        "signer_name": null,"""
 
     prompt = f"""
     Analyze this candidate document page meticulously.
@@ -121,14 +141,15 @@ async def _process_single_page(
     1. Identify Document Type (e.g., Resume, Aadhar, Pan, 10th Mark sheet, 12th Mark sheet, Experience Letter, Employee Photo, Cibil Form, Application Form).
     2. Extract all requested fields in the blueprint for that category.
     3. Evaluate document quality.
+    {signature_task_instruction}
 
     Return STRICT JSON ONLY:
     {{
       "label": "<Matched Category Name>",
-      "ocr_data": {{
+      "ocr_data": {{{signature_fields_schema}
         "<field_key>": "<extracted_value>",
         "doc_quality": "Good | Bad",
-        "doc_quality_issues": "clear | blur | missing_stamp | perfect"
+        "doc_quality_issues": "clear | blur | perfect"
       }}
     }}
     """
@@ -152,14 +173,20 @@ async def _process_single_page(
                 page_num,
             )
 
+            ocr_data = parsed.get("ocr_data", {})
+            if not signature_unlocked:
+                # Strictly enforce lock at extraction data level
+                ocr_data["is_signed"] = False
+                ocr_data["signatory_type"] = "NONE"
+                ocr_data["signer_name"] = None
+                if ocr_data.get("doc_quality_issues") == "missing_stamp":
+                    ocr_data["doc_quality_issues"] = "clear"
+
             return {
                 "id": clean_id,
                 "url": source_url,
                 "label": label,
-                "ocr_data": parsed.get(
-                    "ocr_data",
-                    {},
-                ),
+                "ocr_data": ocr_data,
             }
 
     except Exception as exc:
@@ -169,6 +196,15 @@ async def _process_single_page(
 
     label = f"Document_Page_{page_num}"
 
+    fallback_ocr = {
+        "doc_quality": "Good",
+        "doc_quality_issues": "document seems fine",
+    }
+    if not signature_unlocked:
+        fallback_ocr["is_signed"] = False
+        fallback_ocr["signatory_type"] = "NONE"
+        fallback_ocr["signer_name"] = None
+
     return {
         "id": _generate_contract_id(
             label,
@@ -176,10 +212,7 @@ async def _process_single_page(
         ),
         "url": source_url,
         "label": label,
-        "ocr_data": {
-            "doc_quality": "Good",
-            "doc_quality_issues": "document seems fine",
-        },
+        "ocr_data": fallback_ocr,
     }
 
 
@@ -188,6 +221,7 @@ async def run_pipeline(
     filename: str,
     blueprint: Dict[str, Any] = None,
     source_url: Optional[str] = None,
+    signature_unlocked: bool = False,
 ) -> Dict[str, Any]:
 
     doc = pymupdf.open(
@@ -199,7 +233,7 @@ async def run_pipeline(
 
     print(
         f"\n[PIPELINE] Ingesting {filename} "
-        f"({total_pages} pages) in full parallel stream...",
+        f"({total_pages} pages, signature_unlocked={signature_unlocked}) in full parallel stream...",
         flush=True,
     )
 
@@ -227,6 +261,7 @@ async def run_pipeline(
             img_bytes,
             blueprint,
             source_url,
+            signature_unlocked=signature_unlocked,
         )
         for p_num, img_bytes in page_render_tasks
     ]

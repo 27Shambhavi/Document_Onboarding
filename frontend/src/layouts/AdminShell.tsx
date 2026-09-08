@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTheme, useAuth } from '../App';
 import {
   ShieldAlert,
@@ -15,34 +15,58 @@ import {
   Lock,
 } from 'lucide-react';
 
-const adminNavigationItems = [
+export type AdminTabType = 'roster' | 'tokens' | 'analytics';
+
+export interface AdminShellContext {
+  activeTab: AdminTabType;
+  setActiveTab: (tab: AdminTabType) => void;
+}
+
+interface AdminNavItem {
+  id: AdminTabType;
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+}
+
+const adminNavigationItems: AdminNavItem[] = [
   {
+    id: 'roster',
     name: 'Company Approvals & Roster',
-    path: '/admin/dashboard',
     icon: Users,
-    description: 'Review registered companies & approve access tokens',
+    description: 'Review registered companies, approve tokens & inspect usage drill-downs',
   },
   {
-    name: 'Invite Token Generator',
-    path: '/admin/dashboard#tokens',
+    id: 'tokens',
+    name: 'Invite & Signature Tokens',
     icon: Key,
-    description: 'Issue single-use 48-hour registration passkeys',
+    description: 'Issue single-use 48-hour registration passkeys & premium signature unlock keys',
   },
   {
-    name: 'Platform Revenue Analytics',
-    path: '/admin/dashboard#analytics',
+    id: 'analytics',
+    name: 'Platform Revenue & Pricing',
     icon: BarChart3,
-    description: 'System-wide scan throughput & billing overview',
+    description: 'System-wide scan throughput, revenue metrics & global pricing controls',
   },
 ];
 
 export const AdminShell: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const { logout } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const rawTab = searchParams.get('tab') as AdminTabType;
+  const currentTab: AdminTabType = ['roster', 'tokens', 'analytics'].includes(rawTab) ? rawTab : 'roster';
+
+  const handleTabChange = (tab: AdminTabType) => {
+    setSearchParams({ tab });
+    setMobileMenuOpen(false);
+  };
+
+  const activeNavItem = adminNavigationItems.find((item) => item.id === currentTab) || adminNavigationItems[0];
 
   return (
     <div className={`flex h-screen overflow-hidden flex-col md:flex-row transition-colors duration-200 ${
@@ -115,13 +139,12 @@ export const AdminShell: React.FC = () => {
 
           {adminNavigationItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === '/admin/dashboard';
+            const isActive = currentTab === item.id;
             return (
-              <NavLink
-                key={item.name}
-                to="/admin/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
+              <button
+                key={item.id}
+                onClick={() => handleTabChange(item.id)}
+                className={`w-full text-left flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
                   isActive
                     ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-sm'
                     : isDark
@@ -131,7 +154,7 @@ export const AdminShell: React.FC = () => {
               >
                 <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-rose-400' : 'text-slate-400'}`} />
                 {!collapsed && <span className="ml-3 truncate">{item.name}</span>}
-              </NavLink>
+              </button>
             );
           })}
 
@@ -185,13 +208,13 @@ export const AdminShell: React.FC = () => {
         }`}>
           <div>
             <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-              Platform Administration Console
+              {activeNavItem.name}
               <span className="text-xs px-2.5 py-0.5 rounded-full font-extrabold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30">
                 SuperAdmin
               </span>
             </h1>
             <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Manage company registration approvals, generate single-use invite tokens, and audit platform usage.
+              {activeNavItem.description}
             </p>
           </div>
 
@@ -208,7 +231,7 @@ export const AdminShell: React.FC = () => {
         </header>
 
         <main className="flex-1 p-4 md:p-8">
-          <Outlet />
+          <Outlet context={{ activeTab: currentTab, setActiveTab: handleTabChange }} />
         </main>
       </div>
     </div>

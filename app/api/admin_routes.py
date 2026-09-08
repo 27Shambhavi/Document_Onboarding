@@ -3,6 +3,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.admin_auth import (
@@ -12,7 +13,8 @@ from app.core.admin_auth import (
 )
 from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import Admin, Company, InviteToken
+from app.db.models import Admin, Company, DocumentScan, InviteToken
+from app.models.billing import storage_manager
 from app.schemas.admin import (
     AdminLoginRequest,
     AdminLoginResponse,
@@ -249,33 +251,24 @@ def reject_company(
 
 
 # =========================================================
-# 6. UNLOCK SIGNATURE PREMIUM FEATURE — Task 2
+# 6. SINGLE-USE SIGNATURE UNLOCK TOKEN GENERATION — Task 1
 # =========================================================
 
-class UnlockSignatureRequest(BaseModel):
-    secret_token: str
-
-
 @router.post(
-    "/unlock-signature/{company_id}",
-    summary="Admin: Unlock Signature & Stamp Verification for a company",
+    "/companies/{company_id}/generate-signature-token",
+    summary="Admin: Generate a single-use signature add-on unlock token for a company",
 )
-def unlock_signature(
+def generate_signature_token(
     company_id: str,
-    payload: UnlockSignatureRequest,
+    admin: dict = Depends(authenticate_admin),
     db: Session = Depends(get_db),
 ):
     """
-    Unlocks the premium Signature & Stamp Verification feature for the given company.
-    Requires a valid admin secret token passed in the request body.
-    No admin JWT required — the secret_token acts as the credential.
+    Generates a cryptographically secure, single-use, company-specific token
+    (e.g., SIG-UNLOCK-<hex>) and saves it to the company's signature_unlock_token column.
+    Once redeemed by the client, it will be burned immediately.
+    Protected by admin authentication.
     """
-    if payload.secret_token != settings.ADMIN_SECRET_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid secret token. Permission denied.",
-        )
-
     company = (
         db.query(Company)
         .filter(Company.company_id == company_id)
@@ -288,19 +281,154 @@ def unlock_signature(
             detail=f"Company '{company_id}' not found.",
         )
 
-    if company.signature_unlocked:
-        return {
-            "message": "Signature feature already unlocked for this company.",
-            "company_id": company_id,
-            "signature_unlocked": True,
-        }
-
-    company.signature_unlocked = True
+    token = f"SIG-UNLOCK-{secrets.token_hex(8).upper()}"
+    company.signature_unlock_token = token
     db.commit()
     db.refresh(company)
 
     return {
-        "message": "Signature & Stamp Verification unlocked successfully.",
+        "status": "success",
         "company_id": company.company_id,
+        "signature_unlock_token": token,
         "signature_unlocked": company.signature_unlocked,
+        "message": "Single-use signature unlock token generated successfully.",
     }
+
+
+# =========================================================
+# 7. GLOBAL PRICING CONFIGURATION ENGINE — Task 2
+# =========================================================
+
+class AdminUpdatePricingRequest(BaseModel):
+    price_per_page: float
+    price_per_signature_check: float
+
+
+@router.get(
+    "/billing/pricing",
+    summary="Admin: Get current global pricing rates",
+)
+def get_billing_pricing(
+    admin: dict = Depends(authenticate_admin),
+):
+    """
+    Returns current platform pricing rates from StorageManager.
+    Protected by admin authentication.
+    """
+    pricing = storage_manager.get_pricing()
+    return pricing.model_dump()
+
+
+@router.put(
+    "/billing/pricing",
+    summary="Admin: Dynamically update per-page and signature verification pricing rates",
+)
+def update_billing_rates(
+    payload: AdminUpdatePricingRequest,
+    admin: dict = Depends(authenticate_admin),
+):
+    """
+    Admin view: Dynamically update per-page and signature verification pricing rates.
+    Protected by admin authentication.
+    """
+    if payload.price_per_page < 0 or payload.price_per_signature_check < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Pricing rates cannot be negative",
+        )
+
+    updated = storage_manager.update_pricing(
+        price_per_page=payload.price_per_page,
+        price_per_signature=payload.price_per_signature_check,
+    )
+    return {
+        "status": "updated",
+        "pricing": updated.model_dump(),
+    }
+
+
+# =========================================================
+# 8. COMPANY USAGE ANALYTICS (DRILL-DOWN) — Task 3
+# =========================================================
+
+@router.get(
+    "/companies/{company_id}/usage",
+    summary="Admin: Get aggregated scan and billing usage for a specific company",
+)
+def get_company_usage_metrics(
+    company_id: str,
+    admin: dict = Depends(authenticate_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin view: Aggregated usage analytics strictly for the requested company_id.
+    Queries the DocumentScan table to compute total_scans, total_pages, and total_revenue_inr.
+    Protected by admin authentication.
+    """
+    company = (
+        db.query(Company)
+        .filter(Company.company_id == company_id)
+        .first()
+    )
+    if not company:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Company '{company_id}' not found.",
+        )
+
+    total_scans = (
+        db.query(func.count(DocumentScan.id))
+        .filter(DocumentScan.company_id == company_id)
+        .scalar()
+        or 0
+    )
+
+    total_pages = (
+        db.query(func.coalesce(func.sum(DocumentScan.pages_count), 0))
+        .filter(DocumentScan.company_id == company_id)
+        .scalar()
+        or 0
+    )
+
+    total_revenue_inr = round(
+        float(
+            db.query(func.coalesce(func.sum(DocumentScan.cost_inr), 0.0))
+            .filter(DocumentScan.company_id == company_id)
+            .scalar()
+            or 0.0
+        ),
+        2,
+    )
+
+    recent_scans = (
+        db.query(DocumentScan)
+        .filter(DocumentScan.company_id == company_id)
+        .order_by(DocumentScan.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return {
+        "status": "success",
+        "company_id": company.company_id,
+        "company_name": company.company_name,
+        "email": company.email,
+        "company_status": company.status,
+        "is_active": company.is_active,
+        "signature_unlocked": company.signature_unlocked,
+        "signature_unlock_token": company.signature_unlock_token,
+        "total_scans": total_scans,
+        "total_pages": total_pages,
+        "total_revenue_inr": total_revenue_inr,
+        "recent_scans": [
+            {
+                "id": s.id,
+                "filename": s.filename,
+                "pages_count": s.pages_count,
+                "cost_inr": s.cost_inr,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+            for s in recent_scans
+        ],
+    }
+

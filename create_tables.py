@@ -24,6 +24,18 @@ MIGRATION_STMTS = [
         END IF;
     END$$;
     """,
+    # Task 1: Add signature_unlock_token to companies for single-use token mechanism
+    """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='companies' AND column_name='signature_unlock_token'
+        ) THEN
+            ALTER TABLE companies ADD COLUMN signature_unlock_token VARCHAR(255);
+        END IF;
+    END$$;
+    """,
 ]
 
 with engine.connect() as conn:
@@ -35,4 +47,4 @@ with engine.connect() as conn:
             print(f"  [migration] Notice (non-fatal): {exc}")
 
 print("Database tables created / migrated successfully.")
-print("  Tables: admin_users, companies (+signature_unlocked), invite_tokens, document_scans")
+print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans")
