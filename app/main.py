@@ -8,6 +8,7 @@ from app.api.document_routes import router as document_router  # <-- Blueprint &
 from app.api.guideline_routes import router as guideline_router
 from app.api.pipeline_routes import router as pipeline_router
 from app.api.scan_routes import router as scan_router  # <-- Scan History Router
+from app.api.chatbot_routes import router as chatbot_router  # <-- RAG Chatbot Router
 
 app = FastAPI(
     title="Automated Document Intelligence & Compliance Audit",
@@ -41,6 +42,9 @@ app.include_router(billing_router)
 
 # 6. Scan History (Task 1)
 app.include_router(scan_router)
+
+# 7. RAG Chatbot (Task 2)
+app.include_router(chatbot_router)
 
 
 @app.get("/", tags=["Health & Status"])

@@ -14,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 
 import { api, type UserSession } from './api/client';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChatbotWidget } from './components/ChatbotWidget';
 
 // ==========================================
 // CRASH-PREVENTION ERROR BOUNDARY
@@ -238,6 +239,7 @@ export const App: React.FC = () => {
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Routes>
+            <ChatbotWidget />
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>

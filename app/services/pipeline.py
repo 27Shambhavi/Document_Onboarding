@@ -107,7 +107,7 @@ async def _process_single_page(
 ) -> Dict[str, Any]:
 
     blueprint_str = (
-        json.dumps(blueprint, indent=2)
+        json.dumps(blueprint, indent=2, ensure_ascii=False)
         if blueprint
         else "{}"
     )
