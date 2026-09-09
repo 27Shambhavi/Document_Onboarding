@@ -3,7 +3,7 @@ from app.db.database import engine
 from app.db.base import Base
 
 # Import ALL models so SQLAlchemy registers them before create_all
-from app.db.models import Admin, Company, InviteToken, DocumentScan  # noqa: F401
+from app.db.models import Admin, Company, InviteToken, DocumentScan, JobDescription  # noqa: F401
 
 print("Creating / migrating database tables...")
 
@@ -47,4 +47,4 @@ with engine.connect() as conn:
             print(f"  [migration] Notice (non-fatal): {exc}")
 
 print("Database tables created / migrated successfully.")
-print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans")
+print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans, job_descriptions")

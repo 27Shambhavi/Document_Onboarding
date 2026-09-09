@@ -6,6 +6,7 @@ from app.api.billing_routes import billing_router
 from app.api.company_auth_routes import router as company_auth_router
 from app.api.document_routes import router as document_router  # <-- Blueprint & OCR Router
 from app.api.guideline_routes import router as guideline_router
+from app.api.hr_ranking_routes import router as hr_ranking_router
 from app.api.pipeline_routes import router as pipeline_router
 from app.api.scan_routes import router as scan_router  # <-- Scan History Router
 
@@ -41,6 +42,9 @@ app.include_router(billing_router)
 
 # 6. Scan History (Task 1)
 app.include_router(scan_router)
+
+# 7. AI Candidate Ranking & JD Match
+app.include_router(hr_ranking_router)
 
 
 @app.get("/", tags=["Health & Status"])

@@ -369,4 +369,95 @@ export const api = {
     const res = await apiClient.post(`/admin/companies/${companyId}/generate-signature-token`);
     return res.data;
   },
+
+  // 8. AI CANDIDATE RANKING & JD MATCH (EXPLAINABLE AI)
+  analyzeJobDescription: async (payload: FormData | { raw_text: string; job_title?: string }): Promise<{
+    status: string;
+    id: number;
+    job_title: string;
+    created_at: string;
+    raw_jd_text: string;
+    extracted_requirements: Record<string, any>;
+  }> => {
+    let headers: Record<string, string> = {};
+    if (payload instanceof FormData) {
+      headers['Content-Type'] = 'multipart/form-data';
+    }
+    const res = await apiClient.post('/hr/job-description/analyze', payload, { headers });
+    return res.data;
+  },
+
+  getJobDescriptions: async (): Promise<{
+    status: string;
+    total: number;
+    job_descriptions: Array<{
+      id: number;
+      job_title: string;
+      created_at: string;
+      extracted_requirements: Record<string, any>;
+    }>;
+  }> => {
+    const res = await apiClient.get('/hr/job-descriptions');
+    return res.data;
+  },
+
+  getJobDescription: async (jdId: number): Promise<{
+    status: string;
+    id: number;
+    company_id: string;
+    job_title: string;
+    raw_jd_text: string;
+    extracted_requirements: Record<string, any>;
+    created_at: string;
+  }> => {
+    const res = await apiClient.get(`/hr/job-descriptions/${jdId}`);
+    return res.data;
+  },
+
+  rankCandidatesForJD: async (jdId: number, scanIds?: number[]): Promise<{
+    status: string;
+    job_description: {
+      id: number;
+      job_title: string;
+      extracted_requirements: Record<string, any>;
+    };
+    kpis: {
+      total_candidates_analyzed: number;
+      top_match_percentage: number;
+      average_match_percentage: number;
+      strong_matches_count: number;
+    };
+    ranked_candidates: Array<{
+      candidate_id: string | number;
+      candidate_name: string;
+      candidate_filename: string;
+      candidate_email: string;
+      score: number;
+      rank: number;
+      match_status: string;
+      score_breakdown: {
+        skills: number;
+        experience: number;
+        education: number;
+        certifications: number;
+      };
+      matched_requirements: Array<{
+        category: string;
+        requirement: string;
+        evidence: string;
+      }>;
+      missing_requirements: Array<{
+        category: string;
+        requirement: string;
+        reason: string;
+      }>;
+      recommendation: string;
+      extracted_skills: string[];
+      uploaded_at?: string;
+    }>;
+  }> => {
+    const payload = scanIds && scanIds.length > 0 ? { scan_ids: scanIds } : undefined;
+    const res = await apiClient.post(`/hr/job-description/${jdId}/rank-candidates`, payload);
+    return res.data;
+  },
 };

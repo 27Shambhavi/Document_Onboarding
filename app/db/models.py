@@ -129,6 +129,13 @@ class Company(Base):
         order_by="DocumentScan.created_at.desc()",
     )
 
+    job_descriptions: Mapped[List["JobDescription"]] = relationship(
+        "JobDescription",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="JobDescription.created_at.desc()",
+    )
+
 
 # =========================================================
 # DOCUMENT SCAN HISTORY — Task 1
@@ -238,3 +245,54 @@ class InviteToken(Base):
         String(100),
         nullable=True,
     )
+
+
+# =========================================================
+# JOB DESCRIPTION (AI Candidate Ranking & JD Match)
+# =========================================================
+
+class JobDescription(Base):
+    """
+    Stores structured Job Descriptions and extracted requirements
+    (skills, experience, education, certifications) for AI candidate matching.
+    """
+    __tablename__ = "job_descriptions"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("companies.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    job_title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    raw_jd_text: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
+
+    extracted_requirements: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    company: Mapped["Company"] = relationship(
+        "Company",
+        back_populates="job_descriptions",
+    )

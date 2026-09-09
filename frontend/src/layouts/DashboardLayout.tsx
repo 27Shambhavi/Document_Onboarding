@@ -13,6 +13,7 @@ import {
   FileCheck,
   Building2,
   LogOut,
+  UserCheck,
 } from 'lucide-react';
 
 const navigationItems = [
@@ -21,6 +22,13 @@ const navigationItems = [
     path: '/dashboard',
     icon: LayoutDashboard,
     description: 'System metrics, document throughput, & engine health',
+  },
+  {
+    name: 'AI Candidate Match',
+    path: '/hr-ranking',
+    icon: UserCheck,
+    badge: 'XAI',
+    description: 'Explainable AI resume ranking & JD requirement matching',
   },
   {
     name: 'Intelligence Config',

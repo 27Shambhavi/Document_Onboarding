@@ -91,6 +91,7 @@ class UnifiedQwenClient:
         self,
         prompt: str,
         system_prompt: str = "You are an enterprise compliance auditor.",
+        max_tokens: int = 1024,
         max_retries: int = 3,
     ) -> str:
         messages = [
@@ -106,7 +107,7 @@ class UnifiedQwenClient:
                         model=self.text_model,
                         messages=messages,
                         temperature=0.01,
-                        max_tokens=512,
+                        max_tokens=max_tokens,
                     )
                     return response.choices[0].message.content or ""
                 except Exception as exc:
