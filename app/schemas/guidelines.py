@@ -17,8 +17,10 @@ class DocumentFileItem(BaseModel):
 class GuidelineVerdictItem(BaseModel):
     """Represents a single document entry inside the 'guideline' response array (The ID Contract)."""
     id: str = Field(..., description="The document ID that this verdict belongs to")
-    cleared_guidelines: List[str] = Field(default_factory=list, description="Rules passed by this document with reasons")
-    uncleared_guidelines: List[str] = Field(default_factory=list, description="Rules failed by this document with reasons")
+    document_label: Optional[str] = Field(None, description="Document type name (e.g. Bank Statement, Aadhaar Card)")
+    cleared_guidelines: List[Any] = Field(default_factory=list, description="Rules passed by this document with reasons")
+    uncleared_guidelines: List[Any] = Field(default_factory=list, description="Rules failed by this document with reasons")
+    rules: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Detailed evaluated rules for this document")
 
 
 class FinetechUploadRequest(BaseModel):

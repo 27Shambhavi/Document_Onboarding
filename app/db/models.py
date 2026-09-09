@@ -136,6 +136,13 @@ class Company(Base):
         order_by="JobDescription.created_at.desc()",
     )
 
+    chat_sessions: Mapped[List["ChatSession"]] = relationship(
+        "ChatSession",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="ChatSession.updated_at.desc()",
+    )
+
 
 # =========================================================
 # DOCUMENT SCAN HISTORY — Task 1
@@ -295,4 +302,125 @@ class JobDescription(Base):
     company: Mapped["Company"] = relationship(
         "Company",
         back_populates="job_descriptions",
-    )
+    )
+
+
+# =========================================================
+# CHATBOT SESSIONS & MESSAGES (RAG Chatbot History)
+# =========================================================
+
+class ChatSession(Base):
+    """
+    Groups conversational interactions for a company's RAG Assistant.
+    Supports multi-session history tracking and auditability.
+    """
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    session_id: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("companies.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(255),
+        default="New Conversation",
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    company: Mapped["Company"] = relationship(
+        "Company",
+        back_populates="chat_sessions",
+    )
+
+    messages: Mapped[List["ChatMessage"]] = relationship(
+        "ChatMessage",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="ChatMessage.created_at.asc()",
+    )
+
+
+class ChatMessage(Base):
+    """
+    Stores individual query and response messages within a ChatSession,
+    including the grounding sources and record counts for compliance audit.
+    """
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    session_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("chat_sessions.session_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    sender: Mapped[str] = mapped_column(
+        String(20),  # "user" or "assistant"
+        nullable=False,
+    )
+
+    message_text: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
+
+    # Grounding source references stored as JSONB
+    sources: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    records_found: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationship
+    session: Mapped["ChatSession"] = relationship(
+        "ChatSession",
+        back_populates="messages",
+    )
+

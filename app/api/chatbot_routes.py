@@ -9,6 +9,8 @@ import json
 import logging
 import os
 import re
+import secrets
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import authenticate_client
 from app.db.database import get_db
+from app.db.models import ChatMessage, ChatSession
 from app.services.qwen.client import qwen_client
 
 logger = logging.getLogger("chatbot_routes")
@@ -50,6 +53,10 @@ class ChatQueryRequest(BaseModel):
         description="Natural language question about candidate documents or extracted data.",
         examples=["What is the year of examination for example.pdf?", "Show extracted fields for candidate."]
     )
+    session_id: Optional[str] = Field(
+        None,
+        description="Optional session ID for conversation continuity and history tracking.",
+    )
 
 
 class SourceReference(BaseModel):
@@ -64,6 +71,34 @@ class ChatQueryResponse(BaseModel):
     answer: str
     sources: List[SourceReference]
     records_found: int
+    session_id: str
+
+
+class ChatMessageItem(BaseModel):
+    id: int
+    session_id: str
+    sender: str
+    message_text: str
+    sources: Optional[List[Any]] = None
+    records_found: int = 0
+    created_at: str
+
+
+class ChatSessionSummary(BaseModel):
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    message_count: int
+    latest_message: Optional[str] = None
+
+
+class ChatSessionDetail(BaseModel):
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    messages: List[ChatMessageItem]
 
 
 class SuggestionsResponse(BaseModel):
@@ -461,8 +496,203 @@ async def query_candidate_data(
         for r in records[:5]
     ]
 
+    # 4. Manage Session and Persist Messages to PostgreSQL
+    sess_id = payload.session_id.strip() if payload.session_id else None
+    session = None
+    if sess_id:
+        session = db.query(ChatSession).filter(
+            ChatSession.session_id == sess_id,
+            ChatSession.company_id == company_id,
+        ).first()
+
+    if not session:
+        sess_id = sess_id or f"sess_{secrets.token_hex(8)}"
+        title_text = clean_question[:45] + ("..." if len(clean_question) > 45 else "")
+        session = ChatSession(
+            session_id=sess_id,
+            company_id=company_id,
+            title=title_text,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        db.add(session)
+        db.flush()
+    else:
+        session.updated_at = datetime.now(timezone.utc)
+
+    # Persist user message
+    user_msg = ChatMessage(
+        session_id=session.session_id,
+        sender="user",
+        message_text=clean_question,
+        sources=None,
+        records_found=0,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user_msg)
+
+    # Persist assistant response
+    serialized_sources = [s.model_dump() for s in sources]
+    bot_msg = ChatMessage(
+        session_id=session.session_id,
+        sender="assistant",
+        message_text=answer,
+        sources=serialized_sources,
+        records_found=len(records),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(bot_msg)
+
+    try:
+        db.commit()
+    except Exception as exc:
+        logger.error(f"[chatbot] Failed to commit chat history: {exc}")
+        db.rollback()
+
     return ChatQueryResponse(
         answer=answer,
         sources=sources,
         records_found=len(records),
+        session_id=session.session_id,
     )
+
+
+@router.get(
+    "/sessions",
+    response_model=List[ChatSessionSummary],
+    summary="List Company Chat Sessions",
+    status_code=status.HTTP_200_OK,
+)
+def list_chat_sessions(
+    limit: int = 50,
+    client: dict = Depends(authenticate_client),
+    db: Session = Depends(get_db),
+) -> List[ChatSessionSummary]:
+    company_id = client.get("company_id") or client.get("sub") or ""
+    if not company_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    sessions = (
+        db.query(ChatSession)
+        .filter(ChatSession.company_id == company_id)
+        .order_by(ChatSession.updated_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+    for s in sessions:
+        latest = s.messages[-1].message_text if s.messages else None
+        results.append(
+            ChatSessionSummary(
+                session_id=s.session_id,
+                title=s.title,
+                created_at=s.created_at.isoformat(),
+                updated_at=s.updated_at.isoformat(),
+                message_count=len(s.messages),
+                latest_message=latest,
+            )
+        )
+    return results
+
+
+@router.get(
+    "/sessions/{session_id}",
+    response_model=ChatSessionDetail,
+    summary="Get Chat Session Message History",
+    status_code=status.HTTP_200_OK,
+)
+def get_session_history(
+    session_id: str,
+    client: dict = Depends(authenticate_client),
+    db: Session = Depends(get_db),
+) -> ChatSessionDetail:
+    company_id = client.get("company_id") or client.get("sub") or ""
+    if not company_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    session = (
+        db.query(ChatSession)
+        .filter(
+            ChatSession.session_id == session_id,
+            ChatSession.company_id == company_id,
+        )
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    items = [
+        ChatMessageItem(
+            id=m.id,
+            session_id=m.session_id,
+            sender=m.sender,
+            message_text=m.message_text,
+            sources=m.sources,
+            records_found=m.records_found,
+            created_at=m.created_at.isoformat(),
+        )
+        for m in session.messages
+    ]
+
+    return ChatSessionDetail(
+        session_id=session.session_id,
+        title=session.title,
+        created_at=session.created_at.isoformat(),
+        updated_at=session.updated_at.isoformat(),
+        messages=items,
+    )
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    summary="Delete a Chat Session",
+    status_code=status.HTTP_200_OK,
+)
+def delete_chat_session(
+    session_id: str,
+    client: dict = Depends(authenticate_client),
+    db: Session = Depends(get_db),
+):
+    company_id = client.get("company_id") or client.get("sub") or ""
+    if not company_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    session = (
+        db.query(ChatSession)
+        .filter(
+            ChatSession.session_id == session_id,
+            ChatSession.company_id == company_id,
+        )
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    db.delete(session)
+    db.commit()
+    return {"status": "deleted", "session_id": session_id}
+
+
+@router.delete(
+    "/history",
+    summary="Clear All Chat History for Company",
+    status_code=status.HTTP_200_OK,
+)
+def clear_all_chat_history(
+    client: dict = Depends(authenticate_client),
+    db: Session = Depends(get_db),
+):
+    company_id = client.get("company_id") or client.get("sub") or ""
+    if not company_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    deleted_count = (
+        db.query(ChatSession)
+        .filter(ChatSession.company_id == company_id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"status": "cleared", "deleted_sessions": deleted_count}

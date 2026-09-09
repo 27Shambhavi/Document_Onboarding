@@ -3,14 +3,22 @@ from app.db.database import engine
 from app.db.base import Base
 
 # Import ALL models so SQLAlchemy registers them before create_all
-from app.db.models import Admin, Company, InviteToken, DocumentScan, JobDescription  # noqa: F401
+from app.db.models import (  # noqa: F401
+    Admin,
+    Company,
+    InviteToken,
+    DocumentScan,
+    JobDescription,
+    ChatSession,
+    ChatMessage,
+)
 
 print("Creating / migrating database tables...")
 
 # Create any missing tables (create_all is idempotent for existing tables)
 Base.metadata.create_all(bind=engine)
 
-# Safe column additions for existing tables (idempotent via IF NOT EXISTS / exception swallow)
+# Safe column additions and index migrations for existing tables (idempotent via IF NOT EXISTS / exception swallow)
 MIGRATION_STMTS = [
     # Task 2: Add signature_unlocked to companies (may already exist after create_all)
     """
@@ -36,6 +44,19 @@ MIGRATION_STMTS = [
         END IF;
     END$$;
     """,
+    # Chatbot & HR: Idempotent index creation for performance & tenant isolation
+    """
+    CREATE INDEX IF NOT EXISTS ix_chat_sessions_company_id ON chat_sessions (company_id);
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_chat_sessions_session_id ON chat_sessions (session_id);
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_chat_messages_session_id ON chat_messages (session_id);
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_job_descriptions_company_id ON job_descriptions (company_id);
+    """,
 ]
 
 with engine.connect() as conn:
@@ -47,4 +68,4 @@ with engine.connect() as conn:
             print(f"  [migration] Notice (non-fatal): {exc}")
 
 print("Database tables created / migrated successfully.")
-print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans, job_descriptions")
+print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans, job_descriptions, chat_sessions, chat_messages")

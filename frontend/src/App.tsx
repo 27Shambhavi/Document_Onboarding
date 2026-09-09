@@ -12,6 +12,7 @@ import Billing from './pages/Billing';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import { HRRankingDashboard } from './pages/HRRankingDashboard';
+import { ChatbotHistory } from './pages/ChatbotHistory';
 
 import { api, type UserSession } from './api/client';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
@@ -234,9 +235,12 @@ export const App: React.FC = () => {
               >
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<HomeDashboard />} />
-                <Route path="/hr-ranking" element={<HRRankingDashboard />} />
                 <Route path="/config" element={<ConfigHub />} />
                 <Route path="/audit" element={<AuditEngine />} />
+                <Route path="/hr-ranking" element={<HRRankingDashboard />} />
+                <Route path="/rag" element={<ChatbotHistory />} />
+                <Route path="/chatbot" element={<ChatbotHistory />} />
+                <Route path="/chatbot-history" element={<Navigate to="/rag" replace />} />
                 <Route path="/billing" element={<Billing />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>

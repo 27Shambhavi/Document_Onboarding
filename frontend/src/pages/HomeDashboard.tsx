@@ -1,27 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../App';
-import { api, apiClient } from '../api/client';
+import { api } from '../api/client';
 import type { DocumentScan } from '../api/client';
 import {
   FileText,
   Users,
   ShieldCheck,
-  Activity,
+  ShieldAlert,
   ArrowUpRight,
-  Sparkles,
   Zap,
   CheckCircle2,
+  XCircle,
   Clock,
   ArrowRight,
   Sliders,
-  Cpu,
   FileSearch,
   Copy,
   Check,
   Code2,
   Tag,
 } from 'lucide-react';
+import { CandidateProfileCard } from '../components/audit/CandidateProfileCard';
+import { GuidelineResults } from '../components/audit/GuidelineResults';
 
 export const HomeDashboard: React.FC = () => {
   const { isDark } = useTheme();
@@ -30,14 +31,13 @@ export const HomeDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [totalDocs, setTotalDocs] = useState<number>(0);
   const [totalCandidates, setTotalCandidates] = useState<number>(0);
-  const [systemHealthStatus, setSystemHealthStatus] = useState<'healthy' | 'offline' | 'checking'>('checking');
-  const [compliancePassRate] = useState<number>(0);
   const [recentAudits, setRecentAudits] = useState<DocumentScan[]>([]);
 
-  // Drill-down modal state (Task 3: Dual-view)
+  // Drill-down modal state (Task 3: Profile View, Guideline Audit, Developer JSON)
   const [selectedScan, setSelectedScan] = useState<DocumentScan | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [modalViewMode, setModalViewMode] = useState<'profile' | 'json'>('profile');
+  const [modalViewMode, setModalViewMode] = useState<'profile' | 'guideline' | 'json'>('profile');
+  const [jsonSubTab, setJsonSubTab] = useState<'extracted' | 'guideline'>('extracted');
   const [copiedJson, setCopiedJson] = useState(false);
 
   const copyModalJson = (data: any) => {
@@ -46,15 +46,26 @@ export const HomeDashboard: React.FC = () => {
     setTimeout(() => setCopiedJson(false), 2000);
   };
 
-  // Helper to extract clean attributes & metadata for Profile View
-  const parseScanPayload = (rawJson: any, scanFilename?: string, scanId?: number) => {
+  // Helper to extract clean attributes & metadata for Profile View & Guideline Audit
+  const parseScanPayload = (
+    rawJson: any,
+    scanFilename?: string,
+    scanId?: number,
+    scanObj?: DocumentScan | null
+  ) => {
     if (!rawJson || typeof rawJson !== 'object') {
       return {
         candidateName: scanFilename?.replace(/\.[^/.]+$/, '') || 'Candidate Record',
         requestId: `REQ-${scanId ?? '00'}`,
         detectedDocs: [],
         fields: [],
+        mergedFields: {},
         guidelineVerdicts: [],
+        totalRules: 0,
+        clearedCount: 0,
+        unclearedCount: 0,
+        passRate: 0,
+        overallCleared: false,
       };
     }
 
@@ -105,12 +116,12 @@ export const HomeDashboard: React.FC = () => {
 
     if (rawJson.extracted_fields && typeof rawJson.extracted_fields === 'object') {
       Object.assign(mergedFields, rawJson.extracted_fields);
-    }
-
-    if (Array.isArray(filesList)) {
+    } else if (Array.isArray(filesList) && filesList.length > 0) {
       filesList.forEach((f: any) => {
+        const docLabel = f?.label || 'Document';
         if (f?.ocr_data && typeof f.ocr_data === 'object') {
-          Object.assign(mergedFields, f.ocr_data);
+          if (!mergedFields[docLabel]) mergedFields[docLabel] = {};
+          Object.assign(mergedFields[docLabel], f.ocr_data);
         }
       });
     }
@@ -138,6 +149,8 @@ export const HomeDashboard: React.FC = () => {
           'total_candidates',
           'total_candidates_processed',
           'total_guidelines_evaluated',
+          'rules_by_document',
+          'grouped_guidelines',
         ].includes(k)
       ) {
         if (!mergedFields[k]) {
@@ -152,52 +165,133 @@ export const HomeDashboard: React.FC = () => {
         !['raw_ocr_text', 'ocr_text', 'candidate_file', 'requestId', 'customer_id', 'total_documents_detected'].includes(k)
     );
 
-    // 5. Guideline Verdicts (if 1-click or Stage 2 scan)
-    const rawGuidelines =
-      rawJson.guideline ||
-      rawJson.verified_candidates?.[0]?.guideline ||
-      rawJson.rule_results ||
-      [];
+    // 5. Guideline Verdicts (if 1-click, Stage 2 scan, or persisted guidelines in DB)
+    const guidelineVerdicts: any[] = [];
 
-    const guidelineVerdicts: Array<{ id: string; title: string; evidence: string; passed: boolean }> = [];
+    const pushRule = (r: any, fallbackDocLabel?: string, idxKey?: string | number) => {
+      if (!r || typeof r !== 'object') return;
+      const docLabel = r.document_label || fallbackDocLabel;
+      const title = r.field_name || r.rule_title || r.title || 'Guideline Requirement';
+      const isCleared = r.status === 'CLEARED' || r.matched === true;
+      guidelineVerdicts.push({
+        id: r.rule_id || r.id || `rule-${idxKey ?? guidelineVerdicts.length}`,
+        title: title,
+        rule_title: title,
+        document_label: docLabel,
+        evidence: r.evidence || (isCleared ? 'Requirement verified successfully.' : 'Missing or invalid requirement.'),
+        reasoning: r.reasoning || r.explanation || (isCleared ? `Condition satisfied for ${title}.` : `Verification failed for ${title}.`),
+        recommendation: r.recommendation,
+        status: r.status || (isCleared ? 'CLEARED' : 'UNCLEARED'),
+        matched: isCleared,
+        passed: isCleared,
+      });
+    };
 
-    if (Array.isArray(rawGuidelines)) {
-      rawGuidelines.forEach((item: any, gIdx: number) => {
-        if (item && typeof item === 'object') {
-          // Unroll cleared_guidelines
-          if (Array.isArray(item.cleared_guidelines)) {
-            item.cleared_guidelines.forEach((str: string, idx: number) => {
-              const [title, ...evidenceParts] = str.split('->');
-              guidelineVerdicts.push({
-                id: `pass-${gIdx}-${idx}`,
-                title: title.trim(),
-                evidence: evidenceParts.join('->').trim() || 'Requirement verified successfully.',
-                passed: true,
-              });
-            });
-          }
-          // Unroll uncleared_guidelines
-          if (Array.isArray(item.uncleared_guidelines)) {
-            item.uncleared_guidelines.forEach((str: string, idx: number) => {
-              const [title, ...evidenceParts] = str.split('->');
-              guidelineVerdicts.push({
-                id: `fail-${gIdx}-${idx}`,
-                title: title.trim(),
-                evidence: evidenceParts.join('->').trim() || 'Missing or invalid requirement.',
-                passed: false,
-              });
-            });
-          }
+    // A. Check rules_by_document (dict of docLabel -> array of rules)
+    const rulesByDoc = scanObj?.rules_by_document || rawJson.rules_by_document || rawJson.verified_candidates?.[0]?.rules_by_document;
+    if (rulesByDoc && typeof rulesByDoc === 'object' && !Array.isArray(rulesByDoc)) {
+      Object.entries(rulesByDoc).forEach(([docLabel, rules]) => {
+        if (Array.isArray(rules)) {
+          rules.forEach((r, idx) => pushRule(r, docLabel, `${docLabel}-${idx}`));
         }
       });
     }
+
+    // B. Check grouped_guidelines (dict of docLabel -> { rules: [...] })
+    const groupedGuidelines = scanObj?.grouped_guidelines || rawJson.grouped_guidelines || rawJson.verified_candidates?.[0]?.grouped_guidelines;
+    if (guidelineVerdicts.length === 0 && groupedGuidelines && typeof groupedGuidelines === 'object' && !Array.isArray(groupedGuidelines)) {
+      Object.entries(groupedGuidelines).forEach(([docLabel, groupVal]: [string, any]) => {
+        if (groupVal && Array.isArray(groupVal.rules)) {
+          groupVal.rules.forEach((r: any, idx: number) => pushRule(r, docLabel, `${docLabel}-${idx}`));
+        }
+      });
+    }
+
+    // C. Check raw guidelines array
+    if (guidelineVerdicts.length === 0) {
+      const rawGuidelines =
+        scanObj?.guideline ||
+        rawJson.guideline ||
+        rawJson.verified_candidates?.[0]?.guideline ||
+        rawJson.results?.[0]?.guideline ||
+        rawJson.rule_results ||
+        [];
+
+      if (Array.isArray(rawGuidelines)) {
+        rawGuidelines.forEach((item: any, gIdx: number) => {
+          if (item && typeof item === 'object') {
+            if (Array.isArray(item.rules) && item.rules.length > 0) {
+              item.rules.forEach((r: any, rIdx: number) => {
+                pushRule(r, item.document_label, `${gIdx}-${rIdx}`);
+              });
+            } else if (item.rule_id || item.rule_title || item.status) {
+              // Direct flat rule object
+              pushRule(item, item.document_label, gIdx);
+            } else {
+              // Unroll cleared_guidelines
+              if (Array.isArray(item.cleared_guidelines)) {
+                item.cleared_guidelines.forEach((ruleItem: any, idx: number) => {
+                  const str = typeof ruleItem === 'string' ? ruleItem : (ruleItem?.reasoning || ruleItem?.field || JSON.stringify(ruleItem));
+                  const parts = str.split('->');
+                  const docContext = item.document_label || (parts.length > 1 ? parts[0]?.trim() : undefined);
+                  const fieldName = parts.length > 1 ? parts[1]?.trim() : parts[0]?.trim() || str;
+                  guidelineVerdicts.push({
+                    id: `pass-${gIdx}-${idx}`,
+                    title: fieldName,
+                    rule_title: fieldName,
+                    document_label: docContext,
+                    evidence: parts.length > 2 ? parts.slice(2).join('->').trim() : (parts.length > 1 ? parts[1].trim() : 'Requirement verified successfully.'),
+                    reasoning: parts.length > 2 ? parts.slice(2).join('->').trim() : str,
+                    status: 'CLEARED',
+                    matched: true,
+                    passed: true,
+                  });
+                });
+              }
+              // Unroll uncleared_guidelines
+              if (Array.isArray(item.uncleared_guidelines)) {
+                item.uncleared_guidelines.forEach((ruleItem: any, idx: number) => {
+                  const str = typeof ruleItem === 'string' ? ruleItem : (ruleItem?.reasoning || ruleItem?.field || JSON.stringify(ruleItem));
+                  const parts = str.split('->');
+                  const docContext = item.document_label || (parts.length > 1 ? parts[0]?.trim() : undefined);
+                  const fieldName = parts.length > 1 ? parts[1]?.trim() : parts[0]?.trim() || str;
+                  guidelineVerdicts.push({
+                    id: `fail-${gIdx}-${idx}`,
+                    title: fieldName,
+                    rule_title: fieldName,
+                    document_label: docContext,
+                    evidence: parts.length > 2 ? parts.slice(2).join('->').trim() : 'Missing or invalid requirement.',
+                    reasoning: parts.length > 2 ? parts.slice(2).join('->').trim() : str,
+                    status: 'UNCLEARED',
+                    matched: false,
+                    passed: false,
+                  });
+                });
+              }
+            }
+          }
+        });
+      }
+    }
+
+    const totalRules = guidelineVerdicts.length;
+    const clearedCount = guidelineVerdicts.filter((v) => v.passed || v.status === 'CLEARED').length;
+    const unclearedCount = totalRules - clearedCount;
+    const passRate = totalRules > 0 ? Math.round((clearedCount / totalRules) * 100) : 0;
+    const overallCleared = totalRules > 0 && unclearedCount === 0;
 
     return {
       candidateName: name,
       requestId: reqId,
       detectedDocs,
       fields,
+      mergedFields,
       guidelineVerdicts,
+      totalRules,
+      clearedCount,
+      unclearedCount,
+      passRate,
+      overallCleared,
     };
   };
 
@@ -207,17 +301,7 @@ export const HomeDashboard: React.FC = () => {
     const fetchRealData = async () => {
       setLoading(true);
 
-      // 1. Health ping
-      try {
-        const healthRes = await apiClient.get('/health');
-        if (isMounted) {
-          setSystemHealthStatus(healthRes.data?.status === 'healthy' ? 'healthy' : 'healthy');
-        }
-      } catch {
-        if (isMounted) setSystemHealthStatus('healthy');
-      }
-
-      // 2. Fetch scan history from PostgreSQL (Task 1) — persists across page refreshes
+      // 1. Fetch scan history from PostgreSQL (Task 1) — persists across page refreshes
       try {
         const scansRes = await api.getCompanyScans(20);
         if (isMounted) {
@@ -240,6 +324,7 @@ export const HomeDashboard: React.FC = () => {
   const handleScanClick = async (scan: DocumentScan) => {
     setLoadingDetail(true);
     setModalViewMode('profile');
+    setJsonSubTab('extracted');
     setCopiedJson(false);
     setSelectedScan(scan); // show panel immediately with skeleton
     try {
@@ -268,11 +353,6 @@ export const HomeDashboard: React.FC = () => {
 
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="max-w-2xl space-y-3">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-              <span>Next-Gen Document Intelligence Engine v2.0</span>
-            </div>
-
             <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
               AI-Powered Document Onboarding &amp; Rule Verification
             </h2>
@@ -284,7 +364,7 @@ export const HomeDashboard: React.FC = () => {
             <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 onClick={() => navigate('/audit')}
-                className="px-5 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/30 transition-all flex items-center space-x-2 group"
+                className="px-5 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/30 transition-all flex items-center space-x-2 group cursor-pointer"
               >
                 <Zap className="w-4 h-4 fill-current text-amber-300" />
                 <span>Launch 1-Click Audit Engine</span>
@@ -293,7 +373,7 @@ export const HomeDashboard: React.FC = () => {
 
               <button
                 onClick={() => navigate('/config')}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all flex items-center space-x-2 ${
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm border transition-all flex items-center space-x-2 cursor-pointer ${
                   isDark
                     ? 'bg-slate-900/80 hover:bg-slate-800 border-slate-700 text-slate-200'
                     : 'bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-sm'
@@ -304,59 +384,14 @@ export const HomeDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Quick Engine Health Card */}
-          <div
-            className={`w-full lg:w-72 p-4 rounded-2xl border backdrop-blur-md ${
-              isDark ? 'bg-slate-950/70 border-slate-800/80' : 'bg-white/10 border-white/20 text-white'
-            }`}
-          >
-            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider mb-3">
-              <span>Engine Status</span>
-              <span className="flex items-center text-emerald-400 gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                Active &amp; Ready
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="opacity-80">Backend Server Port</span>
-                  <span className="font-bold font-mono">8567 (FastAPI)</span>
-                </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-indigo-400 h-1.5 rounded-full" style={{ width: '100%' }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="opacity-80">Extraction Pipeline</span>
-                  <span className="font-bold text-emerald-400">Online</span>
-                </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-emerald-400 h-1.5 rounded-full" style={{ width: '100%' }} />
-                </div>
-              </div>
-
-              <div className="pt-1 text-[11px] opacity-75 flex items-center justify-between border-t border-white/10">
-                <span>Model: Neural-OCR-Engine</span>
-                <Cpu className="w-3.5 h-3.5 opacity-80" />
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* 2. DYNAMIC METRICS GRID — DB-BACKED, PERSISTS ACROSS REFRESHES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* STAT 1: Total Docs Uploaded */}
-        <div className={`p-5 rounded-2xl border transition-all ${
+        <div className={`p-6 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
@@ -383,7 +418,7 @@ export const HomeDashboard: React.FC = () => {
         </div>
 
         {/* STAT 2: Candidates Processed (total pages) */}
-        <div className={`p-5 rounded-2xl border transition-all ${
+        <div className={`p-6 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
@@ -409,55 +444,6 @@ export const HomeDashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* STAT 3: System Health */}
-        <div className={`p-5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold tracking-wider uppercase ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              System Health &amp; Uptime
-            </span>
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-              <Activity className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <span className="text-3xl font-extrabold tracking-tight text-emerald-500">
-              {systemHealthStatus === 'healthy' ? '100%' : 'Online'}
-            </span>
-            <span className="text-xs font-semibold text-emerald-500 px-2 py-0.5 rounded bg-emerald-500/10">
-              Operational
-            </span>
-          </div>
-          <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Uvicorn FastAPI server responsive
-          </p>
-        </div>
-
-        {/* STAT 4: Compliance Pass Ratio */}
-        <div className={`p-5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold tracking-wider uppercase ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Compliance Pass Ratio
-            </span>
-            <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-500 border border-violet-500/20">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <span className="text-3xl font-extrabold tracking-tight">
-              {totalDocs > 0 ? `${compliancePassRate}%` : 'N/A'}
-            </span>
-            <span className="text-xs font-semibold text-slate-400">
-              {totalDocs > 0 ? `${totalDocs} scans` : 'Awaiting scans'}
-            </span>
-          </div>
-          <div className="mt-3 w-full bg-slate-700/30 rounded-full h-2 overflow-hidden flex">
-            <div className="bg-emerald-500 h-2" style={{ width: totalDocs > 0 ? `${compliancePassRate}%` : '100%' }} />
-          </div>
-        </div>
       </div>
 
       {/* 3. RECENT AUDIT HISTORY (DB-BACKED — CLICKABLE) & ARCHITECTURE */}
@@ -498,7 +484,14 @@ export const HomeDashboard: React.FC = () => {
                   <div className="flex items-center space-x-3 min-w-0">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                     <div className="min-w-0">
-                      <h4 className="text-sm font-semibold truncate">{scan.filename}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold truncate">{scan.filename}</h4>
+                        {scan.has_guidelines && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 flex-shrink-0">
+                            Guideline Audit
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400">
                         {scan.pages_count} {scan.pages_count === 1 ? 'page' : 'pages'} · ₹{scan.cost_inr.toFixed(2)}
                       </p>
@@ -590,22 +583,51 @@ export const HomeDashboard: React.FC = () => {
       {/* SCAN DETAIL SLIDE-OVER MODAL (extracted_json drill-down)      */}
       {/* ============================================================ */}
       {selectedScan && (() => {
-        const parsedPayload = parseScanPayload(selectedScan.extracted_json, selectedScan.filename, selectedScan.id);
+        const parsedPayload = parseScanPayload(
+          selectedScan.extracted_json,
+          selectedScan.filename,
+          selectedScan.id,
+          selectedScan
+        );
+
+        // Active JSON to show and copy in Developer JSON view
+        const guidelineJsonData =
+          selectedScan.rules_by_document && Object.keys(selectedScan.rules_by_document).length > 0
+            ? selectedScan.rules_by_document
+            : selectedScan.guideline && selectedScan.guideline.length > 0
+            ? selectedScan.guideline
+            : selectedScan.grouped_guidelines && Object.keys(selectedScan.grouped_guidelines).length > 0
+            ? selectedScan.grouped_guidelines
+            : parsedPayload.guidelineVerdicts.length > 0
+            ? parsedPayload.guidelineVerdicts
+            : null;
+
+        const activeJsonPayload =
+          jsonSubTab === 'guideline' && guidelineJsonData
+            ? guidelineJsonData
+            : selectedScan.extracted_json;
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className={`w-full max-w-3xl max-h-[88vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
+            <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
               isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
             }`}>
               {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-slate-200/10 gap-4 flex-shrink-0">
+              <div className={`flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b gap-4 flex-shrink-0 ${
+                isDark ? 'border-slate-800' : 'border-slate-200'
+              }`}>
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold truncate flex items-center gap-2">
+                    <h3 className={`text-base font-bold truncate flex items-center gap-2 ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
                       <span>{parsedPayload.candidateName}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-mono font-semibold ${
+                        isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}>
                         #{selectedScan.id}
                       </span>
                     </h3>
@@ -616,11 +638,12 @@ export const HomeDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Dual-View Switcher & Close button */}
+                {/* 3-Way Toggle Switcher & Close button */}
                 <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
                   <div className={`p-1 rounded-xl border flex space-x-1 ${
                     isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
                   }`}>
+                    {/* 1. Profile View */}
                     <button
                       onClick={() => setModalViewMode('profile')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -633,6 +656,31 @@ export const HomeDashboard: React.FC = () => {
                       <span>Profile View</span>
                     </button>
 
+                    {/* 2. Guideline Audit */}
+                    <button
+                      onClick={() => setModalViewMode('guideline')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        modalViewMode === 'guideline'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Guideline Audit</span>
+                      {parsedPayload.totalRules > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                          modalViewMode === 'guideline'
+                            ? 'bg-white/20 text-white'
+                            : parsedPayload.overallCleared
+                            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-rose-500/20 text-rose-600 dark:text-rose-400'
+                        }`}>
+                          {parsedPayload.totalRules}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* 3. Developer JSON */}
                     <button
                       onClick={() => setModalViewMode('json')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -663,149 +711,275 @@ export const HomeDashboard: React.FC = () => {
                 {loadingDetail ? (
                   <div className="flex flex-col items-center justify-center h-48 gap-3 text-indigo-400">
                     <div className="w-8 h-8 border-2 border-indigo-400/40 border-t-indigo-400 rounded-full animate-spin" />
-                    <span className="text-sm font-medium">Loading extracted scan payload from PostgreSQL...</span>
-                  </div>
-                ) : !selectedScan.extracted_json ? (
-                  <div className="text-center text-slate-400 py-12 text-sm">
-                    No extracted JSON payload available for this scan record.
+                    <span className="text-sm font-medium">Loading scan payload from PostgreSQL...</span>
                   </div>
                 ) : modalViewMode === 'profile' ? (
-                  /* 1. PROFILE VIEW */
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    {/* Summary Strip */}
-                    <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
-                      isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-indigo-50/50 border-indigo-100'
-                    }`}>
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Request ID:</span>
-                        <span className="text-xs font-mono font-bold text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
-                          {parsedPayload.requestId}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">Extracted Attributes:</span>
-                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          {parsedPayload.fields.length} {parsedPayload.fields.length === 1 ? 'field' : 'fields'}
-                        </span>
-                      </div>
+                  /* ============================================================ */
+                  /* 1. OCR PROFILE VIEW                                          */
+                  /* ============================================================ */
+                  !selectedScan.extracted_json ? (
+                    <div className="text-center text-slate-400 py-12 text-sm">
+                      No extracted JSON payload available for this scan record.
                     </div>
-
-                    {/* Detected Document Classification Badges */}
-                    {parsedPayload.detectedDocs.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                          <Tag className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Detected Documents</span>
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {parsedPayload.detectedDocs.map((doc, idx) => (
-                            <div
-                              key={idx}
-                              className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                                isDark
-                                  ? 'bg-slate-950/80 border-slate-800 text-slate-300'
-                                  : 'bg-slate-50 border-slate-200 text-slate-700'
-                              }`}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                              <span className="font-bold">{doc.label}</span>
-                              <span className="text-[10px] opacity-60 font-mono">({doc.id})</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Extracted Key-Value Fields Grid */}
-                    <div className="space-y-2.5">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <FileSearch className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Extracted Candidate Data</span>
-                      </h4>
-
-                      {parsedPayload.fields.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {parsedPayload.fields.map(([key, val], idx) => (
-                            <div
-                              key={idx}
-                              className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
-                                isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50/70 border-slate-200'
-                              }`}
-                            >
-                              <span className={`text-[11px] font-semibold uppercase tracking-wider truncate mb-1 ${
-                                isDark ? 'text-slate-400' : 'text-slate-500'
-                              }`}>
-                                {key.replace(/_/g, ' ')}
-                              </span>
-                              <span className={`text-sm font-semibold truncate select-all ${
-                                isDark ? 'text-slate-200' : 'text-slate-800'
-                              }`}>
-                                {String(val)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className={`p-4 rounded-xl border text-center text-xs ${
-                          isDark ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
-                        }`}>
-                          No discrete key-value fields detected. Switch to the Developer JSON tab to inspect the raw OCR structure.
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Compliance Rules Verified (if present) */}
-                    {parsedPayload.guidelineVerdicts.length > 0 && (
-                      <div className="space-y-2.5 pt-2 border-t border-slate-200/10">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                            <span>Compliance Guideline Reasoning</span>
-                          </h4>
-                          <span className="text-xs font-bold text-slate-400">
-                            {parsedPayload.guidelineVerdicts.filter(v => v.passed).length} / {parsedPayload.guidelineVerdicts.length} Cleared
+                  ) : (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      {/* Summary Strip */}
+                      <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
+                        isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-indigo-50/50 border-indigo-100'
+                      }`}>
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Request ID:</span>
+                          <span className="text-xs font-mono font-bold text-indigo-500 dark:text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
+                            {parsedPayload.requestId}
                           </span>
                         </div>
 
-                        <div className="space-y-2">
-                          {parsedPayload.guidelineVerdicts.map((rule) => (
-                            <div
-                              key={rule.id}
-                              className={`p-3 rounded-xl border flex items-start justify-between gap-3 text-xs ${
-                                rule.passed
-                                  ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
-                                  : 'bg-rose-500/5 border-rose-500/20 text-rose-400'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <span className={`font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                                  {rule.title}
-                                </span>
-                                <span className="text-[11px] opacity-80 mt-0.5 block">{rule.evidence}</span>
-                              </div>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase flex-shrink-0 ${
-                                rule.passed
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                              }`}>
-                                {rule.passed ? 'PASSED' : 'FAILED'}
-                              </span>
-                            </div>
-                          ))}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">Extracted Attributes:</span>
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            {parsedPayload.fields.length} {parsedPayload.fields.length === 1 ? 'field' : 'fields'}
+                          </span>
                         </div>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Quick Guideline Verdict Link Banner (if guideline results exist) */}
+                      {parsedPayload.totalRules > 0 && (
+                        <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                          parsedPayload.overallCleared
+                            ? isDark ? 'bg-emerald-950/20 border-emerald-800/40' : 'bg-emerald-50/70 border-emerald-200'
+                            : isDark ? 'bg-rose-950/20 border-rose-800/40' : 'bg-rose-50/70 border-rose-200'
+                        }`}>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                              parsedPayload.overallCleared
+                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {parsedPayload.overallCleared ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="text-xs font-bold flex items-center gap-2 flex-wrap">
+                                <span className={isDark ? 'text-slate-200' : 'text-slate-800'}>Compliance Verdict:</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                  parsedPayload.overallCleared
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-rose-600 text-white'
+                                }`}>
+                                  {parsedPayload.overallCleared ? 'CLEARED' : 'UNCLEARED'} ({parsedPayload.passRate}% Pass)
+                                </span>
+                              </h5>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                {parsedPayload.clearedCount} of {parsedPayload.totalRules} evaluated compliance conditions satisfied.
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setModalViewMode('guideline')}
+                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 flex-shrink-0 cursor-pointer"
+                          >
+                            <span>Open Guideline Audit</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Detected Document Classification Badges */}
+                      {parsedPayload.detectedDocs.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                            <span>Detected Documents</span>
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {parsedPayload.detectedDocs.map((doc, idx) => (
+                              <div
+                                key={idx}
+                                className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-2 ${
+                                  isDark
+                                    ? 'bg-slate-950/80 border-slate-800 text-slate-300'
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                                <span className="font-bold">{doc.label}</span>
+                                <span className="text-[10px] opacity-60 font-mono">({doc.id})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Extracted Key-Value Fields Sectional Card */}
+                      <div className="space-y-2.5">
+                        <CandidateProfileCard
+                          extractedData={parsedPayload.mergedFields}
+                          candidateName={parsedPayload.candidateName}
+                          isDark={isDark}
+                        />
+                      </div>
+                    </div>
+                  )
+                ) : modalViewMode === 'guideline' ? (
+                  /* ============================================================ */
+                  /* 2. GUIDELINE COMPLIANCE & REASONING RESULTS                  */
+                  /* ============================================================ */
+                  parsedPayload.totalRules === 0 ? (
+                    <div className={`p-10 rounded-2xl border text-center space-y-4 animate-in fade-in duration-200 ${
+                      isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto">
+                        <ShieldAlert className="w-7 h-7" />
+                      </div>
+                      <div className="max-w-md mx-auto space-y-2">
+                        <h4 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                          No Guideline Compliance Check Performed
+                        </h4>
+                        <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          No guideline compliance check was performed for this scan. Run an End-to-End Audit via the Audit Engine to generate a compliance verdict.
+                        </p>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          onClick={() => {
+                            setSelectedScan(null);
+                            navigate('/audit');
+                          }}
+                          className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
+                        >
+                          <Zap className="w-4 h-4 fill-current text-amber-300" />
+                          <span>Run End-to-End Audit via Audit Engine</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      {/* Overall Compliance Verdict & Pass Rate KPI Card */}
+                      <div className={`p-6 rounded-2xl border transition-all ${
+                        parsedPayload.overallCleared
+                          ? isDark
+                            ? 'bg-emerald-950/20 border-emerald-800/40'
+                            : 'bg-emerald-50/70 border-emerald-200'
+                          : isDark
+                          ? 'bg-rose-950/20 border-rose-800/40'
+                          : 'bg-rose-50/70 border-rose-200'
+                      }`}>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                          <div className="space-y-2 min-w-0">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Compliance Verification Verdict
+                              </span>
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wide border shadow-sm ${
+                                parsedPayload.overallCleared
+                                  ? 'bg-emerald-600 text-white border-emerald-600'
+                                  : 'bg-rose-600 text-white border-rose-600'
+                              }`}>
+                                {parsedPayload.overallCleared ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>CLEARED</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>UNCLEARED</span>
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              {parsedPayload.overallCleared
+                                ? 'All mandatory onboarding rules and regulatory conditions have been verified successfully.'
+                                : `${parsedPayload.unclearedCount} of ${parsedPayload.totalRules} compliance conditions require attention or administrative follow-up.`}
+                            </p>
+                          </div>
+
+                          {/* Stats Counters */}
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <div className={`px-4 py-2.5 rounded-xl border text-center ${
+                              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                            }`}>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pass Rate</div>
+                              <div className={`text-lg font-extrabold ${
+                                parsedPayload.passRate === 100
+                                  ? 'text-emerald-500'
+                                  : parsedPayload.passRate >= 60
+                                  ? 'text-indigo-500'
+                                  : 'text-rose-500'
+                              }`}>
+                                {parsedPayload.passRate}%
+                              </div>
+                            </div>
+
+                            <div className={`px-4 py-2.5 rounded-xl border text-center ${
+                              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                            }`}>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Cleared</div>
+                              <div className="text-lg font-extrabold text-emerald-500">{parsedPayload.clearedCount}</div>
+                            </div>
+
+                            <div className={`px-4 py-2.5 rounded-xl border text-center ${
+                              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                            }`}>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-rose-500">Uncleared</div>
+                              <div className="text-lg font-extrabold text-rose-500">{parsedPayload.unclearedCount}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Grouped Guideline Evaluations with AI Reasoning and Evidence */}
+                      <div className="pt-2">
+                        <GuidelineResults rules={parsedPayload.guidelineVerdicts} isDark={isDark} />
+                      </div>
+                    </div>
+                  )
                 ) : (
-                  /* 2. DEVELOPER JSON VIEW */
-                  <div className="space-y-3 animate-in fade-in duration-200">
+                  /* ============================================================ */
+                  /* 3. DEVELOPER JSON VIEW                                       */
+                  /* ============================================================ */
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    {/* JSON sub-view switcher if guidelines exist */}
+                    {guidelineJsonData && (
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className={`p-1 rounded-xl border inline-flex space-x-1 ${
+                          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+                        }`}>
+                          <button
+                            onClick={() => setJsonSubTab('extracted')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              jsonSubTab === 'extracted'
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Extracted OCR Blueprint
+                          </button>
+                          <button
+                            onClick={() => setJsonSubTab('guideline')}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              jsonSubTab === 'guideline'
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Guideline Audit Results
+                          </button>
+                        </div>
+
+                        <span className="text-xs text-slate-400 font-mono">
+                          {jsonSubTab === 'guideline' ? 'Persisted Rule Evaluations JSON' : 'PostgreSQL JSONB Blueprint'}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-400 font-mono">
-                        Raw PostgreSQL JSONB Payload ({JSON.stringify(selectedScan.extracted_json).length.toLocaleString()} bytes)
+                        {activeJsonPayload ? `${JSON.stringify(activeJsonPayload).length.toLocaleString()} bytes` : '0 bytes'}
                       </span>
                       <button
-                        onClick={() => copyModalJson(selectedScan.extracted_json)}
+                        onClick={() => copyModalJson(activeJsonPayload || selectedScan.extracted_json)}
                         className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                           copiedJson
                             ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
@@ -831,7 +1005,7 @@ export const HomeDashboard: React.FC = () => {
                     <pre className={`text-xs font-mono p-4 rounded-2xl border overflow-auto max-h-[55vh] leading-relaxed whitespace-pre-wrap ${
                       isDark ? 'bg-slate-950/80 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
                     }`}>
-                      {JSON.stringify(selectedScan.extracted_json, null, 2)}
+                      {JSON.stringify(activeJsonPayload || selectedScan.extracted_json, null, 2)}
                     </pre>
                   </div>
                 )}

@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   RotateCcw,
 } from 'lucide-react';
+import { CandidateProfileCard } from '../components/audit/CandidateProfileCard';
+import { GuidelineResults } from '../components/audit/GuidelineResults';
 
 export const AuditEngine: React.FC = () => {
   const { isDark } = useTheme();
@@ -353,8 +355,10 @@ export const AuditEngine: React.FC = () => {
     extractedObj = { ...candidateOcrItem.extracted_fields };
   } else if (candidateOcrItem?.files?.length) {
     candidateOcrItem.files.forEach((f: any) => {
+      const docLabel = f?.label || 'Document';
       if (f?.ocr_data && typeof f.ocr_data === 'object') {
-        Object.assign(extractedObj, f.ocr_data);
+        if (!extractedObj[docLabel]) extractedObj[docLabel] = {};
+        Object.assign(extractedObj[docLabel], f.ocr_data);
       }
     });
   } else if (candidateOcrItem?.ocr_data && typeof candidateOcrItem.ocr_data === 'object') {
@@ -364,17 +368,6 @@ export const AuditEngine: React.FC = () => {
   } else if (typeof candidateOcrItem === 'object' && candidateOcrItem) {
     extractedObj = { ...candidateOcrItem };
   }
-
-  const fieldsEntries = Object.entries(extractedObj).filter(
-    ([key, val]) =>
-      typeof val !== 'object' &&
-      key !== 'raw_ocr_text' &&
-      key !== 'ocr_text' &&
-      key !== 'candidate_file' &&
-      key !== 'requestId' &&
-      key !== 'customer_id' &&
-      key !== 'total_documents_detected'
-  );
 
   // Safe extraction of rules/verdicts for Stage 2 / 1-Click
   // Unroll GuidelineVerdictItem (cleared_guidelines & uncleared_guidelines) into structured rules
@@ -389,29 +382,51 @@ export const AuditEngine: React.FC = () => {
   const ruleVerdicts: any[] = [];
   rawGuidelineList.forEach((item, itemIdx) => {
     if (item && typeof item === 'object') {
-      if (Array.isArray(item.cleared_guidelines) || Array.isArray(item.uncleared_guidelines)) {
-        (item.cleared_guidelines || []).forEach((ruleText: string, rIdx: number) => {
+      if (Array.isArray(item.rules) && item.rules.length > 0) {
+        item.rules.forEach((r: any) => {
+          ruleVerdicts.push({
+            rule_id: r.rule_id,
+            rule_title: r.field_name || r.rule_title,
+            status: r.status,
+            matched: r.matched ?? (r.status === 'CLEARED'),
+            evidence: r.evidence,
+            reasoning: r.reasoning,
+            recommendation: r.recommendation,
+            document_label: r.document_label || item.document_label,
+            document_id: r.document_id || item.id,
+          });
+        });
+      } else if (Array.isArray(item.cleared_guidelines) || Array.isArray(item.uncleared_guidelines)) {
+        (item.cleared_guidelines || []).forEach((ruleItem: any, rIdx: number) => {
+          const ruleText = typeof ruleItem === 'string' ? ruleItem : (ruleItem?.reasoning || ruleItem?.field || JSON.stringify(ruleItem));
           const parts = ruleText.split('->');
+          const docContext = item.document_label || (parts.length > 1 ? parts[0]?.trim() : undefined);
+          const fieldName = parts.length > 1 ? parts[1]?.trim() : parts[0]?.trim() || ruleText;
           ruleVerdicts.push({
             rule_id: `CLEAR-${item.id || itemIdx}-${rIdx}`,
-            rule_title: parts[0]?.trim() || ruleText,
+            rule_title: fieldName,
             status: 'CLEARED',
             matched: true,
-            evidence: parts.length > 1 ? parts.slice(1).join('->').trim() : 'Condition verified in document',
-            reasoning: ruleText,
+            evidence: parts.length > 2 ? parts.slice(2).join('->').trim() : (parts.length > 1 ? parts[1].trim() : 'Condition verified in document'),
+            reasoning: parts.length > 2 ? parts.slice(2).join('->').trim() : ruleText,
+            document_label: docContext,
             document_id: item.id,
           });
         });
-        (item.uncleared_guidelines || []).forEach((ruleText: string, rIdx: number) => {
+        (item.uncleared_guidelines || []).forEach((ruleItem: any, rIdx: number) => {
+          const ruleText = typeof ruleItem === 'string' ? ruleItem : (ruleItem?.reasoning || ruleItem?.field || JSON.stringify(ruleItem));
           const parts = ruleText.split('->');
+          const docContext = item.document_label || (parts.length > 1 ? parts[0]?.trim() : undefined);
+          const fieldName = parts.length > 1 ? parts[1]?.trim() : parts[0]?.trim() || ruleText;
           ruleVerdicts.push({
             rule_id: `UNCLEAR-${item.id || itemIdx}-${rIdx}`,
-            rule_title: parts[0]?.trim() || ruleText,
+            rule_title: fieldName,
             status: 'UNCLEARED',
             matched: false,
-            evidence: parts.length > 1 ? parts.slice(1).join('->').trim() : 'Rule condition not satisfied or field missing',
-            reasoning: ruleText,
-            recommendation: 'Check document quality or provide missing requirement.',
+            evidence: parts.length > 2 ? parts.slice(2).join('->').trim() : 'Rule condition not satisfied or field missing',
+            reasoning: parts.length > 2 ? parts.slice(2).join('->').trim() : ruleText,
+            recommendation: `Check document quality or provide missing ${fieldName} on ${docContext || 'document'}.`,
+            document_label: docContext,
             document_id: item.id,
           });
         });
@@ -433,7 +448,7 @@ export const AuditEngine: React.FC = () => {
   const overallCleared = unclearedRulesCount === 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300 pb-32">
       
       {/* HEADER BAR */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/10 pb-4">
@@ -800,108 +815,77 @@ export const AuditEngine: React.FC = () => {
       </div>
 
       {/* ================================================================ */}
-      {/* 2 & 3. RESULTS SECTION (SIDE-BY-SIDE IN 1-CLICK MODE) */}
+      {/* 2 & 3. RESULTS SECTION (STACKED SINGLE-COLUMN FLOW)             */}
       {/* ================================================================ */}
       {((stage1Result && (auditMode === 'stage1' || auditMode === 'oneclick')) ||
         (auditReport && (auditMode === 'stage2' || auditMode === 'oneclick'))) && (
-        <div className={auditMode === 'oneclick' && stage1Result && auditReport ? 'grid grid-cols-1 xl:grid-cols-2 gap-6 items-start pt-4' : 'space-y-6 pt-4'}>
-          {stage1Result && (auditMode === 'stage1' || auditMode === 'oneclick') && (
-            <div className={`p-6 rounded-2xl border space-y-6 ${
-              isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-          
-          {/* HEADER WITH DYNAMIC CANDIDATE NAME & DUAL-VIEW TOGGLE */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/10 pb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                  Extracted Candidate Profile
-                </span>
-                <h3 className="text-lg font-extrabold tracking-tight flex items-center gap-2">
-                  {extractedCandidateName || 'Candidate Document'}
-                  {Boolean(candidateOcrItem?.confidence_score ?? stage1Result.confidence_score) && (
-                    <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Confidence: {candidateOcrItem?.confidence_score ?? stage1Result.confidence_score}%
-                    </span>
-                  )}
-                </h3>
-              </div>
-            </div>
-
-            {/* DUAL-VIEW TOGGLE */}
-            <div className={`p-1 rounded-xl border flex space-x-1 ${
-              isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
-            }`}>
-              <button
-                onClick={() => setStage1ViewMode('ui')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  stage1ViewMode === 'ui'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                Human-Friendly Profile Card
-              </button>
-              <button
-                onClick={() => setStage1ViewMode('json')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  stage1ViewMode === 'json'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Code2 className="w-3.5 h-3.5" />
-                Raw JSON
-              </button>
-            </div>
-          </div>
-
-          {/* VIEW 1: HUMAN-FRIENDLY CANDIDATE PROFILE GRID */}
-          {stage1ViewMode === 'ui' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {fieldsEntries.length > 0 ? (
-                  fieldsEntries.map(([key, val]) => (
-                    <div
-                      key={key}
-                      className={`p-4 rounded-xl border transition-all ${
-                        isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                      }`}
-                    >
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
-                        {key.replace(/_/g, ' ')}
-                      </span>
-                      <p className="text-sm font-bold truncate">
-                        {typeof val === 'boolean' ? (val ? '✅ Verified / True' : '❌ False') : String(val)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full p-6 rounded-xl bg-slate-800/20 text-center text-xs text-slate-400">
-                    Document processed. Extracted text available below.
-                  </div>
-                )}
-              </div>
-
-              {/* RAW TEXT STREAM IF PRESENT */}
-              {Boolean(candidateOcrItem?.raw_ocr_text || stage1Result.raw_ocr_text) && (
-                <div className="pt-4 border-t border-slate-200/10">
-                  <h4 className={`text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Document Text Stream:
-                  </h4>
-                  <div className={`p-4 rounded-xl text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto ${
-                    isDark ? 'bg-slate-950 border border-slate-800 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-800'
-                  }`}>
-                    {candidateOcrItem?.raw_ocr_text || stage1Result.raw_ocr_text}
-                  </div>
+        <div className="w-full max-w-full overflow-hidden">
+          <div className="flex flex-col gap-6 pt-4 w-full max-w-full">
+            {stage1Result && (auditMode === 'stage1' || auditMode === 'oneclick') && (
+              <div className={`p-6 rounded-2xl border space-y-6 w-full max-w-full overflow-hidden ${
+                isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+            
+            {/* HEADER WITH DYNAMIC CANDIDATE NAME & DUAL-VIEW TOGGLE */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/10 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
                 </div>
-              )}
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                    Extracted Candidate Profile
+                  </span>
+                  <h3 className="text-lg font-extrabold tracking-tight flex items-center gap-2">
+                    {extractedCandidateName || 'Candidate Document'}
+                    {Boolean(candidateOcrItem?.confidence_score ?? stage1Result.confidence_score) && (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Confidence: {candidateOcrItem?.confidence_score ?? stage1Result.confidence_score}%
+                      </span>
+                    )}
+                  </h3>
+                </div>
+              </div>
+
+              {/* DUAL-VIEW TOGGLE */}
+              <div className={`p-1 rounded-xl border flex space-x-1 ${
+                isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+              }`}>
+                <button
+                  onClick={() => setStage1ViewMode('ui')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    stage1ViewMode === 'ui'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Human-Friendly Profile Card
+                </button>
+                <button
+                  onClick={() => setStage1ViewMode('json')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    stage1ViewMode === 'json'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Code2 className="w-3.5 h-3.5" />
+                  Raw JSON
+                </button>
+              </div>
             </div>
-          )}
+
+            {/* VIEW 1: HUMAN-FRIENDLY CANDIDATE PROFILE GRID */}
+            {stage1ViewMode === 'ui' && (
+              <CandidateProfileCard
+                extractedData={extractedObj}
+                candidateName={extractedCandidateName}
+                confidenceScore={candidateOcrItem?.confidence_score ?? stage1Result.confidence_score}
+                rawOcrText={candidateOcrItem?.raw_ocr_text || stage1Result.raw_ocr_text}
+                isDark={isDark}
+              />
+            )}
 
           {/* VIEW 2: RAW JSON INSPECTOR */}
           {stage1ViewMode === 'json' && (
@@ -942,9 +926,9 @@ export const AuditEngine: React.FC = () => {
               ? 'bg-rose-950/20 border-rose-500/30'
               : 'bg-rose-50/90 border-rose-200'
           }`}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold shadow-lg ${
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold shadow-lg flex-shrink-0 ${
                   overallCleared
                     ? 'bg-emerald-500 text-white shadow-emerald-500/25'
                     : 'bg-rose-500 text-white shadow-rose-500/25'
@@ -952,13 +936,13 @@ export const AuditEngine: React.FC = () => {
                   {overallCleared ? <CheckCircle2 className="w-7 h-7" /> : <XCircle className="w-7 h-7" />}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <span className="text-xs uppercase font-extrabold tracking-widest text-slate-400">
                     Compliance Verification Verdict
                   </span>
-                  <h3 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                    Candidate: <span className="underline decoration-indigo-500/50">{extractedCandidateName || 'Evaluated Profile'}</span>
-                    <span className={`text-xs px-3 py-1 rounded-full font-black tracking-wider uppercase border ${
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <span>Candidate:</span> <span className="underline decoration-indigo-500/50 truncate max-w-md">{extractedCandidateName || 'Evaluated Profile'}</span>
+                    <span className={`text-xs px-3 py-1 rounded-full font-black tracking-wider uppercase border whitespace-nowrap flex-shrink-0 ${
                       overallCleared
                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                         : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
@@ -970,7 +954,7 @@ export const AuditEngine: React.FC = () => {
               </div>
 
               {/* STAT COUNTERS */}
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 flex-shrink-0">
                 <div className={`p-3 rounded-xl border text-center min-w-24 ${
                   isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                 }`}>
@@ -1034,97 +1018,11 @@ export const AuditEngine: React.FC = () => {
 
           {/* HUMAN-FRIENDLY RULE VERDICTS */}
           {resultsViewMode === 'text' && (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Evaluated Compliance Guidelines ({ruleVerdicts.length}):
               </h4>
-
-              <div className="grid grid-cols-1 gap-4">
-                {ruleVerdicts.length > 0 ? (
-                  ruleVerdicts.map((rule, idx) => {
-                    const isCleared = rule?.status === 'CLEARED' || rule?.matched === true;
-                    return (
-                      <div
-                        key={rule?.guideline_id || rule?.rule_id || idx}
-                        className={`p-5 rounded-2xl border transition-all ${
-                          isCleared
-                            ? isDark
-                              ? 'bg-slate-900/80 border-emerald-500/30'
-                              : 'bg-white border-emerald-200 shadow-sm'
-                            : isDark
-                            ? 'bg-slate-900/80 border-rose-500/40'
-                            : 'bg-white border-rose-200 shadow-sm'
-                        }`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
-                                isCleared
-                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                              }`}
-                            >
-                              {isCleared ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                            </div>
-
-                            <div>
-                              <h5 className="text-sm font-bold flex items-center gap-2">
-                                {rule?.rule_title || rule?.guideline_id || `Rule #${idx + 1}`}
-                                {rule?.guideline_id && (
-                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
-                                    {rule.guideline_id}
-                                  </span>
-                                )}
-                              </h5>
-                            </div>
-                          </div>
-
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
-                              isCleared
-                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                            }`}
-                          >
-                            {isCleared ? '✅ CLEARED (Passed)' : '❌ UNCLEARED (Failed)'}
-                          </span>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          {rule?.evidence && (
-                            <div className={`p-3 rounded-xl ${isDark ? 'bg-slate-950/60' : 'bg-slate-50'}`}>
-                              <span className={`font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                Match Evidence:
-                              </span>
-                              <p className="font-mono text-indigo-400">{String(rule.evidence)}</p>
-                            </div>
-                          )}
-
-                          {rule?.reasoning && (
-                            <div className="pt-1">
-                              <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                AI Reasoning:
-                              </span>{' '}
-                              <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{rule.reasoning}</span>
-                            </div>
-                          )}
-
-                          {rule?.recommendation && (
-                            <div className="pt-1 text-rose-400 font-medium">
-                              <strong>Recommendation:</strong> {rule.recommendation}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="p-6 rounded-xl bg-slate-800/20 text-center text-xs text-slate-400">
-                    Audit complete. No rule rejections detected.
-                  </div>
-                )}
-              </div>
+              <GuidelineResults rules={ruleVerdicts} isDark={isDark} />
             </div>
           )}
 
@@ -1163,6 +1061,7 @@ export const AuditEngine: React.FC = () => {
         </div>
       )}
 
+          </div>
         </div>
       )}
 

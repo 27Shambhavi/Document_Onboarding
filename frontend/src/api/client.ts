@@ -141,6 +141,10 @@ export interface DocumentScan {
   cost_inr: number;
   created_at: string;
   extracted_json?: Record<string, any>;
+  has_guidelines?: boolean;
+  guideline?: any[];
+  grouped_guidelines?: Record<string, any>;
+  rules_by_document?: Record<string, any>;
 }
 
 // ==========================================
@@ -458,6 +462,76 @@ export const api = {
   }> => {
     const payload = scanIds && scanIds.length > 0 ? { scan_ids: scanIds } : undefined;
     const res = await apiClient.post(`/hr/job-description/${jdId}/rank-candidates`, payload);
+    return res.data;
+  },
+
+  // 9. RAG CHATBOT & CONVERSATION HISTORY
+  queryChatbot: async (question: string, sessionId?: string): Promise<{
+    answer: string;
+    sources: Array<{
+      table: string;
+      id: number;
+      file_name?: string;
+      document_name?: string;
+      document_type?: string;
+    }>;
+    records_found: number;
+    session_id: string;
+  }> => {
+    const res = await apiClient.post('/chatbot/query', {
+      question,
+      session_id: sessionId || undefined,
+    });
+    return res.data;
+  },
+
+  getChatbotSuggestions: async (): Promise<{
+    company_id: string;
+    latest_file?: string;
+    suggestions: string[];
+  }> => {
+    const res = await apiClient.get('/chatbot/suggestions');
+    return res.data;
+  },
+
+  getChatSessions: async (limit: number = 50): Promise<Array<{
+    session_id: string;
+    title: string;
+    created_at: string;
+    updated_at: string;
+    message_count: number;
+    latest_message?: string;
+  }>> => {
+    const res = await apiClient.get(`/chatbot/sessions?limit=${limit}`);
+    return res.data;
+  },
+
+  getChatSessionHistory: async (sessionId: string): Promise<{
+    session_id: string;
+    title: string;
+    created_at: string;
+    updated_at: string;
+    messages: Array<{
+      id: number;
+      session_id: string;
+      sender: 'user' | 'assistant';
+      message_text: string;
+      sources?: any[];
+      records_found: number;
+      created_at: string;
+    }>;
+  }> => {
+    const res = await apiClient.get(`/chatbot/sessions/${sessionId}`);
+    return res.data;
+  },
+
+  deleteChatSession: async (sessionId: string): Promise<{ status: string; session_id: string }> => {
+    const res = await apiClient.delete(`/chatbot/sessions/${sessionId}`);
+    return res.data;
+  },
+
+  clearChatHistory: async (): Promise<{ status: string; deleted_sessions: number }> => {
+    const res = await apiClient.delete('/chatbot/history');
     return res.data;
   },
 };

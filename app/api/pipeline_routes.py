@@ -185,6 +185,29 @@ async def _process_single_candidate_stage1(
             [],
         )
 
+        # Build nested JSON grouped by Document Type
+        nested_extracted: Dict[str, Dict[str, Any]] = {}
+        for f in files_payload:
+            doc_label = f.get("label") or "Document"
+            if "nested_data" in f and isinstance(f["nested_data"], dict):
+                for k_doc, v_fields in f["nested_data"].items():
+                    if k_doc not in nested_extracted:
+                        nested_extracted[k_doc] = {}
+                    if isinstance(v_fields, dict):
+                        nested_extracted[k_doc].update(v_fields)
+            else:
+                ocr = f.get("ocr_data", {})
+                if isinstance(ocr, dict):
+                    clean_fields = {
+                        k: v for k, v in ocr.items()
+                        if not k.startswith("_") and k not in {
+                            "doc_quality", "doc_quality_issues", "is_signed", "signatory_type", "signer_name"
+                        }
+                    }
+                    if doc_label not in nested_extracted:
+                        nested_extracted[doc_label] = {}
+                    nested_extracted[doc_label].update(clean_fields)
+
         return {
             "candidate_file": filename,
             "requestId": req_id,
@@ -193,6 +216,7 @@ async def _process_single_candidate_stage1(
                 files_payload
             ),
             "files": files_payload,
+            "extracted_fields": nested_extracted,
         }
 
 
@@ -572,13 +596,25 @@ async def stage2_verify_guidelines(
                 c_copy["ocr_data"] = {}
             files_items.append(DocumentFileItem(**c_copy))
         elif "extracted_fields" in cand and isinstance(cand["extracted_fields"], dict):
-            files_items.append(
-                DocumentFileItem(
-                    id="DOC-1",
-                    label=cand.get("label", "Document"),
-                    ocr_data=cand["extracted_fields"],
+            is_nested = any(isinstance(v, dict) for v in cand["extracted_fields"].values())
+            if is_nested:
+                for idx, (doc_name, fields) in enumerate(cand["extracted_fields"].items(), start=1):
+                    if isinstance(fields, dict):
+                        files_items.append(
+                            DocumentFileItem(
+                                id=f"DOC-{idx:02d}",
+                                label=doc_name,
+                                ocr_data=fields,
+                            )
+                        )
+            else:
+                files_items.append(
+                    DocumentFileItem(
+                        id="DOC-1",
+                        label=cand.get("label", "Document"),
+                        ocr_data=cand["extracted_fields"],
+                    )
                 )
-            )
         elif "ocr_data" in cand and isinstance(cand["ocr_data"], dict):
             files_items.append(
                 DocumentFileItem(
@@ -615,6 +651,23 @@ async def stage2_verify_guidelines(
             evidence_map={},
         )
 
+        # Build grouped guidelines mapping for this candidate
+        grouped_guidelines: Dict[str, Dict[str, Any]] = {}
+        for v in verdicts:
+            doc_name = v.document_label or f"Document {v.id}"
+            if doc_name not in grouped_guidelines:
+                grouped_guidelines[doc_name] = {
+                    "document_id": v.id,
+                    "document_label": doc_name,
+                    "cleared_guidelines": [],
+                    "uncleared_guidelines": [],
+                    "rules": [],
+                }
+            grouped_guidelines[doc_name]["cleared_guidelines"].extend(v.cleared_guidelines)
+            grouped_guidelines[doc_name]["uncleared_guidelines"].extend(v.uncleared_guidelines)
+            if getattr(v, "rules", None):
+                grouped_guidelines[doc_name]["rules"].extend(v.rules)
+
         verified_results.append(
             {
                 "candidate_file": cand.get("candidate_file", "Candidate_Document"),
@@ -622,12 +675,27 @@ async def stage2_verify_guidelines(
                 "customer_id": cand.get("customer_id", "CUST-STAGE2"),
                 "total_documents_detected": len(files_items),
                 "guideline": [v.model_dump() for v in verdicts],
+                "grouped_guidelines": grouped_guidelines,
+                "rules_by_document": {k: val["rules"] for k, val in grouped_guidelines.items()},
             }
         )
 
     all_verdicts = []
+    all_grouped_guidelines: Dict[str, Dict[str, Any]] = {}
     for r in verified_results:
         all_verdicts.extend(r.get("guideline", []))
+        for doc_k, doc_val in r.get("grouped_guidelines", {}).items():
+            if doc_k not in all_grouped_guidelines:
+                all_grouped_guidelines[doc_k] = {
+                    "document_id": doc_val.get("document_id"),
+                    "document_label": doc_k,
+                    "cleared_guidelines": [],
+                    "uncleared_guidelines": [],
+                    "rules": [],
+                }
+            all_grouped_guidelines[doc_k]["cleared_guidelines"].extend(doc_val.get("cleared_guidelines", []))
+            all_grouped_guidelines[doc_k]["uncleared_guidelines"].extend(doc_val.get("uncleared_guidelines", []))
+            all_grouped_guidelines[doc_k]["rules"].extend(doc_val.get("rules", []))
 
     return {
         "status": "SUCCESS",
@@ -635,6 +703,8 @@ async def stage2_verify_guidelines(
         "total_guidelines_evaluated": len(active_guidelines),
         "verified_candidates": verified_results,
         "guideline": all_verdicts,
+        "grouped_guidelines": all_grouped_guidelines,
+        "rules_by_document": {k: val["rules"] for k, val in all_grouped_guidelines.items()},
         "results": verified_results,
     }
 
@@ -854,6 +924,22 @@ async def audit_candidate_folder(
             )
         )
 
+        grouped_guidelines: Dict[str, Dict[str, Any]] = {}
+        for v in verdicts:
+            doc_name = v.document_label or f"Document {v.id}"
+            if doc_name not in grouped_guidelines:
+                grouped_guidelines[doc_name] = {
+                    "document_id": v.id,
+                    "document_label": doc_name,
+                    "cleared_guidelines": [],
+                    "uncleared_guidelines": [],
+                    "rules": [],
+                }
+            grouped_guidelines[doc_name]["cleared_guidelines"].extend(v.cleared_guidelines)
+            grouped_guidelines[doc_name]["uncleared_guidelines"].extend(v.uncleared_guidelines)
+            if getattr(v, "rules", None):
+                grouped_guidelines[doc_name]["rules"].extend(v.rules)
+
         return {
             "candidate_file": fname,
             "requestId": ocr_res[
@@ -871,6 +957,8 @@ async def audit_candidate_folder(
                 v.model_dump()
                 for v in verdicts
             ],
+            "grouped_guidelines": grouped_guidelines,
+            "rules_by_document": {k: val["rules"] for k, val in grouped_guidelines.items()},
         }
 
     # ------------------------------------------------------------
@@ -1085,6 +1173,23 @@ async def audit_one_click(
             logger.error(f"Stage 2 Verification error for {fname}: {v_err}")
             guidelines_verdicts = []
 
+        # Build grouped guidelines mapping for this candidate
+        grouped_guidelines: Dict[str, Dict[str, Any]] = {}
+        for v in verdicts:
+            doc_name = v.document_label or f"Document {v.id}"
+            if doc_name not in grouped_guidelines:
+                grouped_guidelines[doc_name] = {
+                    "document_id": v.id,
+                    "document_label": doc_name,
+                    "cleared_guidelines": [],
+                    "uncleared_guidelines": [],
+                    "rules": [],
+                }
+            grouped_guidelines[doc_name]["cleared_guidelines"].extend(v.cleared_guidelines)
+            grouped_guidelines[doc_name]["uncleared_guidelines"].extend(v.uncleared_guidelines)
+            if getattr(v, "rules", None):
+                grouped_guidelines[doc_name]["rules"].extend(v.rules)
+
         return {
             # ---- Stage 1 OCR payload ----
             "candidate_file": fname,
@@ -1094,6 +1199,8 @@ async def audit_one_click(
             "files": ocr_res.get("files", []),
             # ---- Stage 2 verdict payload ----
             "guideline": guidelines_verdicts,
+            "grouped_guidelines": grouped_guidelines,
+            "rules_by_document": {k: val["rules"] for k, val in grouped_guidelines.items()},
         }
 
     tasks = [
@@ -1136,10 +1243,28 @@ async def audit_one_click(
     # Build separate lists for clean side-by-side rendering
     candidates_ocr_data = []
     for r in successful_unified:
-        merged_ocr = {}
+        nested_ocr: Dict[str, Dict[str, Any]] = {}
         for f in r.get("files", []):
-            if isinstance(f, dict) and "ocr_data" in f and isinstance(f["ocr_data"], dict):
-                merged_ocr.update(f["ocr_data"])
+            if isinstance(f, dict):
+                doc_label = f.get("label") or "Document"
+                if "nested_data" in f and isinstance(f["nested_data"], dict):
+                    for k_doc, v_fields in f["nested_data"].items():
+                        if k_doc not in nested_ocr:
+                            nested_ocr[k_doc] = {}
+                        if isinstance(v_fields, dict):
+                            nested_ocr[k_doc].update(v_fields)
+                else:
+                    ocr_data = f.get("ocr_data", {})
+                    if isinstance(ocr_data, dict):
+                        clean_fields = {
+                            k: v for k, v in ocr_data.items()
+                            if not k.startswith("_") and k not in {
+                                "doc_quality", "doc_quality_issues", "is_signed", "signatory_type", "signer_name", "signature_location", "signature_confidence"
+                            }
+                        }
+                        if doc_label not in nested_ocr:
+                            nested_ocr[doc_label] = {}
+                        nested_ocr[doc_label].update(clean_fields)
         candidates_ocr_data.append(
             {
                 "candidate_file": r.get("candidate_file", input_filename),
@@ -1147,7 +1272,7 @@ async def audit_one_click(
                 "customer_id": r.get("customer_id", "CUST-1CLICK"),
                 "total_documents_detected": r.get("total_documents_detected", 0),
                 "files": r.get("files", []),
-                "extracted_fields": merged_ocr,
+                "extracted_fields": nested_ocr,
             }
         )
 
@@ -1158,23 +1283,39 @@ async def audit_one_click(
             "customer_id": r.get("customer_id", "CUST-1CLICK"),
             "total_documents_detected": r.get("total_documents_detected", 0),
             "guideline": r.get("guideline", []),
+            "grouped_guidelines": r.get("grouped_guidelines", {}),
+            "rules_by_document": r.get("rules_by_document", {}),
         }
         for r in successful_unified
     ]
 
     all_verdicts = []
+    all_grouped_guidelines: Dict[str, Dict[str, Any]] = {}
     for r in verified_candidates:
         all_verdicts.extend(r.get("guideline", []))
+        for doc_k, doc_val in r.get("grouped_guidelines", {}).items():
+            if doc_k not in all_grouped_guidelines:
+                all_grouped_guidelines[doc_k] = {
+                    "document_id": doc_val.get("document_id"),
+                    "document_label": doc_k,
+                    "cleared_guidelines": [],
+                    "uncleared_guidelines": [],
+                    "rules": [],
+                }
+            all_grouped_guidelines[doc_k]["cleared_guidelines"].extend(doc_val.get("cleared_guidelines", []))
+            all_grouped_guidelines[doc_k]["uncleared_guidelines"].extend(doc_val.get("uncleared_guidelines", []))
+            all_grouped_guidelines[doc_k]["rules"].extend(doc_val.get("rules", []))
 
     return {
         "status": "SUCCESS",
         "company_id": company_id,
         "total_candidates_processed": len(candidates_ocr_data),
         "total_guidelines_evaluated": len(active_guidelines),
-        # Side-by-side: OCR data (Stage 1) and verdicts (Stage 2)
         "candidates_ocr_data": candidates_ocr_data,
         "verified_candidates": verified_candidates,
         "guideline": all_verdicts,
+        "grouped_guidelines": all_grouped_guidelines,
+        "rules_by_document": {k: val["rules"] for k, val in all_grouped_guidelines.items()},
         "results": verified_candidates,
         "failures": failures_unified,
     }

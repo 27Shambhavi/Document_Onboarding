@@ -138,18 +138,24 @@ async def _process_single_page(
     {blueprint_str}
 
     TASK:
-    1. Identify Document Type (e.g., Resume, Aadhar, Pan, 10th Mark sheet, 12th Mark sheet, Experience Letter, Employee Photo, Cibil Form, Application Form).
-    2. Extract all requested fields in the blueprint for that category.
+    1. Identify Document Type (e.g., Aadhaar Card, PAN Card, Resume, 10th Mark sheet, 12th Mark sheet, Bank Statement, Experience Letter, Employee Photo, Cibil Form, Application Form).
+    2. Extract all requested fields in the blueprint grouped strictly into a nested JSON structure under the identified Document Type.
+       Example required format: {{"Aadhaar Card": {{"Full Name": "...", "DOB": "..."}}}} or {{"PAN Card": {{"PAN Number": "..."}}}}
     3. Evaluate document quality.
     {signature_task_instruction}
 
-    Return STRICT JSON ONLY:
+    Return STRICT JSON ONLY in this exact structure:
     {{
-      "label": "<Matched Category Name>",
+      "label": "<Exact Document Type Name, e.g. Aadhaar Card, PAN Card, Bank Statement>",
       "ocr_data": {{{signature_fields_schema}
         "<field_key>": "<extracted_value>",
         "doc_quality": "Good | Bad",
         "doc_quality_issues": "clear | blur | perfect"
+      }},
+      "nested_data": {{
+        "<Exact Document Type Name>": {{
+          "<field_key>": "<extracted_value>"
+        }}
       }}
     }}
     """
@@ -168,12 +174,20 @@ async def _process_single_page(
                 f"Document_Page_{page_num}",
             )
 
+            # Check if nested_data provides primary document name
+            nested_dict = parsed.get("nested_data", {})
+            if isinstance(nested_dict, dict) and len(nested_dict) > 0 and label.startswith("Document_Page_"):
+                label = list(nested_dict.keys())[0]
+
             clean_id = _generate_contract_id(
                 label,
                 page_num,
             )
 
             ocr_data = parsed.get("ocr_data", {})
+            if not isinstance(ocr_data, dict):
+                ocr_data = {}
+
             if not signature_unlocked:
                 # Strictly enforce lock at extraction data level
                 ocr_data["is_signed"] = False
@@ -182,11 +196,22 @@ async def _process_single_page(
                 if ocr_data.get("doc_quality_issues") == "missing_stamp":
                     ocr_data["doc_quality_issues"] = "clear"
 
+            # Clean business fields for nested document map
+            clean_business_fields = {
+                k: v for k, v in ocr_data.items()
+                if not k.startswith("_") and k not in {
+                    "doc_quality", "doc_quality_issues", "is_signed", "signatory_type", "signer_name"
+                }
+            }
+
+            clean_nested_data = nested_dict if (isinstance(nested_dict, dict) and len(nested_dict) > 0) else {label: clean_business_fields}
+
             return {
                 "id": clean_id,
                 "url": source_url,
                 "label": label,
                 "ocr_data": ocr_data,
+                "nested_data": clean_nested_data,
             }
 
     except Exception as exc:
@@ -213,6 +238,7 @@ async def _process_single_page(
         "url": source_url,
         "label": label,
         "ocr_data": fallback_ocr,
+        "nested_data": {label: fallback_ocr},
     }
 
 

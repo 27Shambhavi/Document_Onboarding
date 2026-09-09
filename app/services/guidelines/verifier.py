@@ -142,117 +142,55 @@ class SystematicGuidelineVerifier:
                 extracted_fields[key] = value
 
         # =====================================================
-        # GUIDELINE VERIFICATION PROMPT
+        # =====================================================
+        # GUIDELINE VERIFICATION PROMPT (DOCUMENT CONTEXTUALIZED)
         # =====================================================
 
         prompt = f"""
-You are an enterprise compliance auditor.
+You are an enterprise compliance and guideline verification auditor.
 
-Perform a guideline verification for ONE specific onboarding
-document.
+Perform a meticulous guideline verification for this specific onboarding document:
+Category: {file_item.label} (ID: {file_item.id})
 
 =========================================================
-DOCUMENT
+DOCUMENT DETAILS
 =========================================================
+Document ID: {file_item.id}
+Document Type/Category: {file_item.label}
 
-Document ID:
-{file_item.id}
-
-Document Label:
-{file_item.label}
-
-OCR DATA:
+EXTRACTED OCR DATA:
 {json.dumps(ocr_data, indent=2, ensure_ascii=False)}
 
-=========================================================
-AVAILABLE OCR FIELD KEYS
-=========================================================
-
+AVAILABLE OCR FIELD KEYS:
 {json.dumps(list(extracted_fields.keys()), indent=2, ensure_ascii=False)}
 
-=========================================================
-ACTIVE COMPANY GUIDELINES
-=========================================================
-
+ACTIVE COMPANY COMPLIANCE GUIDELINES:
 {json.dumps(guidelines_list, indent=2, ensure_ascii=False)}
 
 =========================================================
-EVALUATION RULES
+EVALUATION RULES & DOCUMENT ATTRIBUTION
 =========================================================
-
-1. Evaluate ONLY the guidelines that are applicable to this
-   document.
-
-2. If an OCR field/entity satisfies the applicable guideline,
-   put its EXACT FIELD KEY inside "cleared_guidelines".
-
-3. "cleared_guidelines" must contain FIELD KEYS ONLY.
-
-4. Do NOT put explanations, sentences, descriptions or values
-   inside "cleared_guidelines".
-
-5. Do NOT invent field names.
-
-6. Only use field names that actually exist in the OCR DATA.
-
-7. Example:
-
-OCR DATA:
-
-{{
-    "pan_name": "SAMAD",
-    "pan_dob": "03/02/2004",
-    "pan_number": "QFVPS0764H",
-    "pan_father_name": "MOHD SAJID"
-}}
-
-Then the output should be:
-
-{{
-    "cleared_guidelines": [
-        "pan_name",
-        "pan_dob",
-        "pan_number",
-        "pan_father_name"
-    ],
-    "uncleared_guidelines": []
-}}
-
-8. If a required field is missing, invalid, or fails an
-   applicable guideline, put the EXACT FIELD KEY inside
-   "uncleared_guidelines".
-
-9. Do NOT include metadata fields such as:
-
-   - doc_quality
-   - doc_quality_issues
-   - _quality_status
-   - _confidence
-
-   in either list.
-
-10. Do NOT return:
-
-"All required document & onboarding guidelines successfully cleared."
-
-11. If a document has no applicable guideline fields, return
-    empty arrays.
-
-12. Do not mark a field as cleared merely because a value exists.
-    It must satisfy the applicable company guideline.
+1. Evaluate guidelines that pertain to this document type ({file_item.label}).
+2. If a required field is present and satisfies the guideline, map it into "cleared_guidelines".
+   Format: "{file_item.label} -> <field_name> -> Verified in {file_item.label}"
+3. If a required field is MISSING, invalid, or fails the guideline for this document ({file_item.label}), 
+   strictly map it into "uncleared_guidelines" under this document category.
+   Example: If bankName is missing from a Bank Statement, output:
+   "{file_item.label} -> bankName -> Document '{file_item.label}' is missing required field: bankName"
+4. NEVER omit a failed/missing field. Do not invent unrelated fields.
+5. Do NOT include metadata fields (doc_quality, doc_quality_issues, is_signed).
 
 =========================================================
 OUTPUT FORMAT
 =========================================================
-
-Return STRICT JSON ONLY.
-
+Return STRICT JSON ONLY:
 {{
+    "document": "{file_item.label}",
     "cleared_guidelines": [
-        "field_key"
+        "{file_item.label} -> <field_name> -> Verified in {file_item.label}"
     ],
     "uncleared_guidelines": [
-        "field_key"
+        "{file_item.label} -> <failed_or_missing_field> -> Document '{file_item.label}' is missing required field: <failed_or_missing_field>"
     ]
 }}
 """
@@ -262,7 +200,6 @@ Return STRICT JSON ONLY.
         # =====================================================
 
         try:
-
             raw_res = await qwen_client.chat_async(
                 prompt=prompt
             )
@@ -271,136 +208,118 @@ Return STRICT JSON ONLY.
                 raw_res
             )
 
-            cleared = data.get(
+            raw_cleared = data.get(
                 "cleared_guidelines",
                 []
             )
 
-            uncleared = data.get(
+            raw_uncleared = data.get(
                 "uncleared_guidelines",
                 []
             )
 
-            # =================================================
-            # ENSURE LIST FORMAT
-            # =================================================
+            if not isinstance(raw_cleared, list):
+                raw_cleared = []
 
-            if not isinstance(cleared, list):
-                cleared = []
-
-            if not isinstance(uncleared, list):
-                uncleared = []
+            if not isinstance(raw_uncleared, list):
+                raw_uncleared = []
 
             # =================================================
-            # VALID OCR KEYS
+            # FORMAT CLEARED & UNCLEARED WITH DOCUMENT CONTEXT
             # =================================================
+            cleared: List[str] = []
+            for item in raw_cleared:
+                if not item:
+                    continue
+                if isinstance(item, str):
+                    if "->" in item:
+                        cleared.append(item.strip())
+                    elif item not in EXCLUDED_FIELDS:
+                        cleared.append(f"{file_item.label} -> {item.strip()} -> Verified in {file_item.label}")
+                elif isinstance(item, dict):
+                    f_name = item.get("field") or item.get("key") or "field"
+                    reason = item.get("reasoning") or f"Verified in {file_item.label}"
+                    cleared.append(f"{file_item.label} -> {f_name} -> {reason}")
 
-            valid_keys = set(
-                extracted_fields.keys()
-            )
+            uncleared: List[str] = []
+            for item in raw_uncleared:
+                if not item:
+                    continue
+                if isinstance(item, str):
+                    if "->" in item:
+                        uncleared.append(item.strip())
+                    elif item not in EXCLUDED_FIELDS:
+                        uncleared.append(f"{file_item.label} -> {item.strip()} -> Document '{file_item.label}' is missing required field: {item.strip()}")
+                elif isinstance(item, dict):
+                    f_name = item.get("field") or item.get("key") or "field"
+                    reason = item.get("reasoning") or f"Document '{file_item.label}' is missing required field: {f_name}"
+                    uncleared.append(f"{file_item.label} -> {f_name} -> {reason}")
 
-            # =================================================
-            # FILTER MODEL OUTPUT
-            #
-            # This prevents Qwen from inventing fields.
-            # =================================================
+            # Deduplicate
+            cleared = list(dict.fromkeys(cleared))
+            uncleared = list(dict.fromkeys(uncleared))
 
-            cleared = [
-                key
-                for key in cleared
-                if isinstance(key, str)
-                and key in valid_keys
-                and key not in EXCLUDED_FIELDS
-            ]
-
-            uncleared = [
-                key
-                for key in uncleared
-                if isinstance(key, str)
-                and key in ocr_data
-                and key not in EXCLUDED_FIELDS
-            ]
-
-            # =================================================
-            # REMOVE DUPLICATES
-            # =================================================
-
-            cleared = list(
-                dict.fromkeys(cleared)
-            )
-
-            uncleared = list(
-                dict.fromkeys(uncleared)
-            )
-
-            # =================================================
-            # FALLBACK
-            #
-            # If model returns nothing, do NOT generate the old
-            # generic "All required..." message.
-            # =================================================
-
+            # Fallback if both empty
             if not cleared and not uncleared:
+                quality = str(ocr_data.get("doc_quality", "Good")).strip().lower()
+                quality_issue = str(ocr_data.get("doc_quality_issues", "")).strip().lower()
 
-                quality = str(
-                    ocr_data.get(
-                        "doc_quality",
-                        "Good",
-                    )
-                ).strip().lower()
-
-                quality_issue = str(
-                    ocr_data.get(
-                        "doc_quality_issues",
-                        "",
-                    )
-                ).strip().lower()
-
-                # ---------------------------------------------
-                # Good document
-                # ---------------------------------------------
-
-                if (
-                    quality == "good"
-                    and quality_issue in {
-                        "",
-                        "clear",
-                        "none",
-                        "no issues",
-                    }
-                ):
-
-                    cleared = list(
-                        extracted_fields.keys()
-                    )
-
-                # ---------------------------------------------
-                # Quality problem
-                # ---------------------------------------------
-
+                if quality == "good" and quality_issue in {"", "clear", "none", "no issues"}:
+                    cleared = [
+                        f"{file_item.label} -> {k} -> Verified in {file_item.label}"
+                        for k in extracted_fields.keys()
+                    ]
                 else:
-
-                    cleared = list(
-                        extracted_fields.keys()
-                    )
-
+                    cleared = [
+                        f"{file_item.label} -> {k} -> Verified in {file_item.label}"
+                        for k in extracted_fields.keys()
+                    ]
                     if quality_issue:
-
-                        # We intentionally do NOT put
-                        # doc_quality_issues here because it is
-                        # metadata rather than an OCR entity.
                         uncleared = [
-                            "document_quality"
+                            f"{file_item.label} -> document_quality -> Document '{file_item.label}' has quality issues: {quality_issue}"
                         ]
 
-            # =================================================
-            # RETURN VERDICT
-            # =================================================
+            # Generate structured rules mapping for this document
+            structured_rules: List[Dict[str, Any]] = []
+            for c_idx, c in enumerate(cleared):
+                parts = c.split("->") if isinstance(c, str) else []
+                field = parts[1].strip() if len(parts) > 1 else (parts[0].strip() if parts else "Field")
+                reason = parts[2].strip() if len(parts) > 2 else f"Verified condition for {field} in {file_item.label}"
+                structured_rules.append({
+                    "rule_id": f"CLEAR-{file_item.id}-{c_idx+1}",
+                    "field_name": field,
+                    "rule_title": field,
+                    "status": "CLEARED",
+                    "matched": True,
+                    "evidence": f"Document: {file_item.label} (Verified)",
+                    "reasoning": reason,
+                    "document_label": file_item.label,
+                    "document_id": file_item.id,
+                })
+
+            for u_idx, u in enumerate(uncleared):
+                parts = u.split("->") if isinstance(u, str) else []
+                field = parts[1].strip() if len(parts) > 1 else (parts[0].strip() if parts else "Field")
+                reason = parts[2].strip() if len(parts) > 2 else f"Document '{file_item.label}' is missing required field: {field}"
+                structured_rules.append({
+                    "rule_id": f"UNCLEAR-{file_item.id}-{u_idx+1}",
+                    "field_name": field,
+                    "rule_title": field,
+                    "status": "UNCLEARED",
+                    "matched": False,
+                    "evidence": f"Document: {file_item.label} (Missing/Invalid)",
+                    "reasoning": reason,
+                    "recommendation": f"Please upload a complete, verified copy of {file_item.label} containing {field}.",
+                    "document_label": file_item.label,
+                    "document_id": file_item.id,
+                })
 
             return GuidelineVerdictItem(
                 id=file_item.id,
+                document_label=file_item.label,
                 cleared_guidelines=cleared,
                 uncleared_guidelines=uncleared,
+                rules=structured_rules,
             )
 
         # =====================================================

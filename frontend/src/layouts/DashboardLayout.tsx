@@ -14,6 +14,7 @@ import {
   Building2,
   LogOut,
   UserCheck,
+  Bot,
 } from 'lucide-react';
 
 const navigationItems = [
@@ -22,13 +23,6 @@ const navigationItems = [
     path: '/dashboard',
     icon: LayoutDashboard,
     description: 'System metrics, document throughput, & engine health',
-  },
-  {
-    name: 'AI Candidate Match',
-    path: '/hr-ranking',
-    icon: UserCheck,
-    badge: 'XAI',
-    description: 'Explainable AI resume ranking & JD requirement matching',
   },
   {
     name: 'Intelligence Config',
@@ -42,6 +36,20 @@ const navigationItems = [
     icon: ShieldCheck,
     badge: 'Core',
     description: 'Candidate OCR extraction & Guideline evaluation pipeline',
+  },
+  {
+    name: 'AI Candidate Match',
+    path: '/hr-ranking',
+    icon: UserCheck,
+    badge: 'XAI',
+    description: 'Explainable AI resume ranking & JD requirement matching',
+  },
+  {
+    name: 'Assistant',
+    path: '/rag',
+    icon: Bot,
+    badge: 'AI',
+    description: 'Document intelligence Q&A with compliance audit history',
   },
   {
     name: 'Billing & Usage',
@@ -58,7 +66,10 @@ export const DashboardLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const activeNavItem = navigationItems.find((item) => item.path === location.pathname) || navigationItems[0];
+  const activeNavItem =
+    navigationItems.find(
+      (item) => item.path === location.pathname || (item.path === '/rag' && location.pathname === '/chatbot')
+    ) || navigationItems[0];
 
   return (
     <div className={`flex h-screen overflow-hidden flex-col md:flex-row transition-colors duration-200 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -94,14 +105,9 @@ export const DashboardLayout: React.FC = () => {
               <FileCheck className="w-6 h-6" />
             </div>
             {!collapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-lg tracking-tight leading-none flex items-center gap-1">
-                  DocVerify <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 font-semibold">2.0</span>
-                </span>
-                <span className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Document Intelligence
-                </span>
-              </div>
+              <span className="font-bold text-lg tracking-tight leading-none">
+                DocVerify
+              </span>
             )}
           </div>
           
@@ -212,17 +218,6 @@ export const DashboardLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* SYSTEM STATUS INDICATOR */}
-            <div className={`hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium border ${
-              isDark ? 'bg-slate-900/90 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-            }`}>
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>FastAPI OCR Engine Active</span>
-            </div>
-
             {/* THEME TOGGLE SWITCH */}
             <button
               onClick={toggleTheme}
@@ -249,7 +244,7 @@ export const DashboardLayout: React.FC = () => {
         </header>
 
         {/* PAGE CONTENT OUTLET */}
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 pb-32">
           <Outlet />
         </main>
       </div>

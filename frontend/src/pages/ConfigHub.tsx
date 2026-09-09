@@ -224,7 +224,7 @@ export const ConfigHub: React.FC = () => {
     <div className="space-y-10 animate-in fade-in duration-300">
       
       {/* HEADER BAR */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/10 pb-4">
+      <div className="border-b border-slate-200/10 pb-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Sliders className="w-6 h-6 text-indigo-500" />
@@ -233,14 +233,6 @@ export const ConfigHub: React.FC = () => {
           <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             Define document extraction blueprints and set compliance rules evaluated during candidate audits.
           </p>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <span className={`text-xs px-3 py-1.5 rounded-full font-medium border ${
-            isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
-          }`}>
-            Active Policy: <strong className="text-indigo-500">v2.4.0-Enterprise</strong>
-          </span>
         </div>
       </div>
 

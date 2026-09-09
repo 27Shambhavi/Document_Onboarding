@@ -4,7 +4,6 @@ import { useTheme, useAuth } from '../App';
 import { api } from '../api/client';
 import {
   FileCheck,
-  Sparkles,
   Lock,
   Mail,
   Building2,
@@ -14,9 +13,6 @@ import {
   EyeOff,
   Sun,
   Moon,
-  Zap,
-  CheckCircle2,
-  Globe,
   ShieldAlert,
 } from 'lucide-react';
 
@@ -121,11 +117,6 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <div className="relative z-10 space-y-6 max-w-lg my-auto">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
-            <span>AI Blueprint Quality & Compliance Auditing</span>
-          </div>
-
           <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
             Automate Document Extraction with Neural Verification.
           </h1>
@@ -133,37 +124,6 @@ export const LoginPage: React.FC = () => {
           <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-indigo-100'}`}>
             Process government passports, driver IDs, and compliance contracts in milliseconds. Built with multi-stage reasoning engines, custom rule matrix definitions, and dual-view auditing.
           </p>
-
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <div className={`p-4 rounded-2xl border backdrop-blur-md ${
-              isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white/10 border-white/20'
-            }`}>
-              <div className="flex items-center space-x-2 text-indigo-400 mb-1">
-                <CheckCircle2 className="w-4 h-4" />
-                <span className="text-xs font-bold uppercase tracking-wider">Pass Ratio</span>
-              </div>
-              <p className="text-2xl font-black">94.2%</p>
-              <p className="text-[11px] opacity-75 mt-0.5">3,840 Candidates Verified</p>
-            </div>
-
-            <div className={`p-4 rounded-2xl border backdrop-blur-md ${
-              isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white/10 border-white/20'
-            }`}>
-              <div className="flex items-center space-x-2 text-emerald-400 mb-1">
-                <Zap className="w-4 h-4 fill-current" />
-                <span className="text-xs font-bold uppercase tracking-wider">Extraction Speed</span>
-              </div>
-              <p className="text-2xl font-black">142ms</p>
-              <p className="text-[11px] opacity-75 mt-0.5">Sub-second neural OCR</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative z-10 flex items-center justify-between text-xs text-indigo-300/80 pt-6 border-t border-white/10">
-          <span className="flex items-center gap-1.5">
-            <Globe className="w-4 h-4" /> ISO/IEC 27001 Security Standard Compliant
-          </span>
-          <span>v2.0.0</span>
         </div>
       </div>
 

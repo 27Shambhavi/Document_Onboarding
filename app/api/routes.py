@@ -170,20 +170,23 @@ INSTRUCTIONS:
    - If it matches a defined schema, set "document_type" to the exact schema key name.
    - If it does not match any company schema, set "document_type": "unknown".
 
-3. FIELD EXTRACTION:
-   - If matched, extract only the required fields defined in that schema.
+3. FIELD EXTRACTION (NESTED BY DOCUMENT TYPE):
+   - If matched, extract all requested fields grouped strictly in a nested JSON structure under the Document Type.
+     Example required format: {{"Aadhaar Card": {{"Full Name": "...", "DOB": "..."}}}} or {{"PAN Card": {{"PAN Number": "..."}}}}
    - If a field is not present on the document, return null. Do not hallucinate values.
    - If document_type is "unknown", return "extracted_data": {{}}.
 {signature_instructions}
 
-Respond ONLY with valid JSON in this exact structure:
+Respond ONLY with valid JSON in this exact nested structure:
 {{
   "quality": "GOOD",
   "quality_reason": null,
   "document_type": "<matched_schema_key_or_unknown>",
   "confidence": 0.95,{signature_json_schema}
   "extracted_data": {{
-    "<field_name>": "<extracted_value_or_null>"
+    "<matched_schema_key>": {{
+      "<field_name>": "<extracted_value_or_null>"
+    }}
   }}
 }}
 """
@@ -301,7 +304,10 @@ def _stitch_contiguous_pages(
       current_doc["pages"].append(page["page_number"])
       for k, v in page.get("extracted_data", {}).items():
         if v is not None:
-          current_doc["extracted_data"][k] = v
+          if isinstance(v, dict) and isinstance(current_doc["extracted_data"].get(k), dict):
+            current_doc["extracted_data"][k].update(v)
+          else:
+            current_doc["extracted_data"][k] = v
 
       if (
           enable_signature_detection

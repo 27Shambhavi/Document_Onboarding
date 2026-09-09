@@ -119,6 +119,24 @@ def get_company_scans(
         ),
         2,
     )
+    scans_list = []
+    for s in scans:
+        extracted = s.extracted_json or {}
+        has_g = bool(
+            extracted.get("guideline")
+            or extracted.get("verified_candidates", [{}])[0].get("guideline")
+            or extracted.get("grouped_guidelines")
+            or extracted.get("rules_by_document")
+        )
+        scans_list.append({
+            "id": s.id,
+            "company_id": s.company_id,
+            "filename": s.filename,
+            "pages_count": s.pages_count,
+            "cost_inr": s.cost_inr,
+            "has_guidelines": has_g,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
 
     return {
         "status": "success",
@@ -126,17 +144,7 @@ def get_company_scans(
         "total_scans": total,
         "total_pages_scanned": total_pages,
         "total_cost_inr": total_cost,
-        "scans": [
-            {
-                "id": s.id,
-                "company_id": s.company_id,
-                "filename": s.filename,
-                "pages_count": s.pages_count,
-                "cost_inr": s.cost_inr,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
-            }
-            for s in scans
-        ],
+        "scans": scans_list,
     }
 
 
@@ -179,12 +187,34 @@ def get_scan_detail(
             detail=f"Scan #{scan_id} not found or access denied.",
         )
 
+    extracted = scan.extracted_json or {}
+    guidelines_data = (
+        extracted.get("guideline")
+        or extracted.get("verified_candidates", [{}])[0].get("guideline")
+        or extracted.get("results", [{}])[0].get("guideline")
+        or []
+    )
+    grouped_data = (
+        extracted.get("grouped_guidelines")
+        or extracted.get("verified_candidates", [{}])[0].get("grouped_guidelines")
+        or {}
+    )
+    rules_by_doc = (
+        extracted.get("rules_by_document")
+        or extracted.get("verified_candidates", [{}])[0].get("rules_by_document")
+        or {}
+    )
+
     return {
         "id": scan.id,
         "company_id": scan.company_id,
         "filename": scan.filename,
         "pages_count": scan.pages_count,
         "extracted_json": scan.extracted_json,
+        "guideline": guidelines_data,
+        "grouped_guidelines": grouped_data,
+        "rules_by_document": rules_by_doc,
+        "has_guidelines": bool(guidelines_data or grouped_data or rules_by_doc),
         "cost_inr": scan.cost_inr,
         "created_at": scan.created_at.isoformat() if scan.created_at else None,
     }

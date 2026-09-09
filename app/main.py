@@ -47,7 +47,7 @@ app.include_router(scan_router)
 # 7. RAG Chatbot (Task 2)
 app.include_router(chatbot_router)
 
-# 7. AI Candidate Ranking & JD Match
+# 8. AI Candidate Ranking & JD Match
 app.include_router(hr_ranking_router)
 
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme, useAuth } from '../App';
 import { apiClient } from '../api/client';
 import {
@@ -12,6 +13,7 @@ import {
   FileText,
   Loader2,
   ChevronDown,
+  ExternalLink,
 } from 'lucide-react';
 
 interface SourceReference {
@@ -37,10 +39,12 @@ const FALLBACK_SUGGESTIONS = [
 ];
 
 export const ChatbotWidget: React.FC = () => {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
   const { isAuthenticated } = useAuth();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>(FALLBACK_SUGGESTIONS);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -112,7 +116,12 @@ export const ChatbotWidget: React.FC = () => {
     try {
       const response = await apiClient.post('/chatbot/query', {
         question: textToSend,
+        session_id: sessionId || undefined,
       });
+
+      if (response.data?.session_id) {
+        setSessionId(response.data.session_id);
+      }
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -144,6 +153,7 @@ export const ChatbotWidget: React.FC = () => {
   };
 
   const handleClear = () => {
+    setSessionId(null);
     setMessages([
       {
         id: 'welcome',
@@ -221,16 +231,26 @@ export const ChatbotWidget: React.FC = () => {
 
             <div className="flex items-center space-x-1">
               <button
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/rag');
+                }}
+                title="Open Full History Page"
+                className="p-1.5 rounded-lg hover:bg-white/20 text-indigo-100 hover:text-white transition-colors cursor-pointer"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+              <button
                 onClick={handleClear}
                 title="Clear Chat History"
-                className="p-1.5 rounded-lg hover:bg-white/20 text-indigo-100 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/20 text-indigo-100 hover:text-white transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 title="Minimize Chat"
-                className="p-1.5 rounded-lg hover:bg-white/20 text-indigo-100 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/20 text-indigo-100 hover:text-white transition-colors cursor-pointer"
               >
                 <ChevronDown className="w-4 h-4" />
               </button>
