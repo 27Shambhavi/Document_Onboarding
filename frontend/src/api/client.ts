@@ -315,6 +315,13 @@ export const api = {
     return res.data;
   },
 
+  getScanFileBlob: async (scanId: number): Promise<Blob> => {
+    const res = await apiClient.get(`/company/scans/${scanId}/file`, {
+      responseType: 'blob',
+    });
+    return res.data;
+  },
+
   // 6. CLIENT UNLOCK SIGNATURE — Single-use company-specific token
   unlockSignature: async (token: string): Promise<{
     status: string;

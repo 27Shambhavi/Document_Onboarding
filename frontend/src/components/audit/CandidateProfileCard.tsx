@@ -8,6 +8,61 @@ interface CandidateProfileCardProps {
   isDark?: boolean;
 }
 
+const FIELD_LABEL_MAP: Record<string, string> = {
+  aadhar_number: 'Aadhaar Number',
+  aadhar_name: 'Name on Aadhaar',
+  aadhar_dob: 'Date of Birth (Aadhaar)',
+  aadhar_address: 'Permanent Address (Aadhaar)',
+  aadhar_father_name: "Father's Name (Aadhaar)",
+  pan_number: 'PAN Number',
+  pan_name: 'Name on PAN',
+  pan_dob: 'Date of Birth (PAN)',
+  pan_father_name: "Father's Name (PAN)",
+  twelfth_name: 'Candidate Name (12th)',
+  twelfth_yop: 'Year of Passing (12th)',
+  twelfth_marks: 'Marks / % (12th)',
+  tenth_name: 'Candidate Name (10th)',
+  tenth_yop: 'Year of Passing (10th)',
+  tenth_marks: 'Marks / % (10th)',
+  grad_name: 'Candidate Name (Graduation)',
+  grad_yop: 'Year of Passing (Graduation)',
+  grad_marks: 'Marks / CGPA (Graduation)',
+  employee_name: 'Employee Name',
+  net_pay: 'Net Salary',
+  salary_month: 'Salary Month',
+  bank_name: 'Bank Name',
+  account_number: 'Bank Account Number',
+  bank_account_number: 'Bank Account Number',
+  ifsc_code: 'IFSC Code',
+  bank_ifsc_code: 'IFSC Code',
+  branch_name: 'Branch Name',
+  work_location: 'Work Location',
+  department: 'Department',
+  resume_name: 'Candidate Name (Resume)',
+  resume_email: 'Email Address',
+  resume_mobile_no: 'Mobile Number',
+  resume_current_address: 'Current Address',
+  resume_father_name: "Father's Name",
+  'Face detected(Y/N)': 'Face Detected',
+  is_signed: 'Signature Detected',
+  signatory_type: 'Signatory Type',
+  signer_name: 'Signer Name',
+  doc_quality: 'Document Quality',
+  doc_quality_issues: 'Quality Notes',
+  'Board Name': 'Board Name',
+  'School Name': 'School Name',
+  'University/College Name': 'University / College',
+  'Degree Name': 'Degree Name',
+};
+
+const formatFieldLabel = (key: string): string => {
+  if (FIELD_LABEL_MAP[key]) return FIELD_LABEL_MAP[key];
+  if (FIELD_LABEL_MAP[key.toLowerCase()]) return FIELD_LABEL_MAP[key.toLowerCase()];
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 export const CandidateProfileCard: React.FC<CandidateProfileCardProps> = ({
   extractedData,
   rawOcrText,
@@ -71,6 +126,16 @@ export const CandidateProfileCard: React.FC<CandidateProfileCardProps> = ({
         }
       }
     });
+
+    // If we have recognized named documents (e.g. Aadhar, PAN, Marksheet), filter out empty generic "Document_Page_N" sections
+    const hasNamedDocs = documentSections.some(
+      (s) => !s.documentName.startsWith('Document_Page_') && !s.documentName.startsWith('Page_')
+    );
+    if (hasNamedDocs) {
+      documentSections = documentSections.filter(
+        (s) => !s.documentName.startsWith('Document_Page_') || Object.keys(s.fields).length > 0
+      );
+    }
   } else {
     // Legacy flat data fallback
     const flatFields: Record<string, any> = {};
@@ -117,29 +182,34 @@ export const CandidateProfileCard: React.FC<CandidateProfileCardProps> = ({
       {documentSections.map((section, sIdx) => (
         <div key={section.documentName || sIdx} className="w-full">
           {/* PROMINENT DOCUMENT SECTION HEADER */}
-          <h3 className={`text-lg font-bold border-b pb-2 mb-4 ${
-            sIdx === 0 ? 'mt-2' : 'mt-8'
-          } ${
-            isDark ? 'text-slate-100 border-slate-800' : 'text-slate-800 border-slate-200'
-          }`}>
-            {section.documentName}
-          </h3>
+          <div className="flex items-center gap-2 border-b pb-2 mb-4">
+            <h3 className={`text-base font-bold ${
+              isDark ? 'text-slate-100' : 'text-slate-800'
+            }`}>
+              {section.documentName.replace(/_/g, ' ')}
+            </h3>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+              isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {Object.keys(section.fields).length} {Object.keys(section.fields).length === 1 ? 'field' : 'fields'}
+            </span>
+          </div>
 
           {/* GRID OF KEY-VALUE PAIRS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {Object.entries(section.fields).map(([fieldKey, val]) => (
               <div
                 key={fieldKey}
-                className={`p-4 rounded-xl border transition-all ${
+                className={`p-3.5 rounded-xl border transition-all ${
                   isDark
                     ? 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
                     : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'
                 }`}
               >
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
-                  {fieldKey.replace(/_/g, ' ')}
+                <span className="text-[11px] font-bold text-slate-400 tracking-wider block mb-1">
+                  {formatFieldLabel(fieldKey)}
                 </span>
-                <p className={`text-sm font-bold truncate ${
+                <p className={`text-sm font-semibold break-words leading-relaxed ${
                   isDark ? 'text-slate-100' : 'text-slate-900'
                 }`}>
                   {typeof val === 'boolean'
