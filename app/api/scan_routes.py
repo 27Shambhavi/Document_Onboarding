@@ -5,9 +5,11 @@ GET  /company/scans           → paginated list of all document scans for the a
 GET  /company/scans/{scan_id} → full extracted_json payload for a single scan (drill-down)
 """
 
+import os
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -218,3 +220,68 @@ def get_scan_detail(
         "cost_inr": scan.cost_inr,
         "created_at": scan.created_at.isoformat() if scan.created_at else None,
     }
+
+
+# =========================================================
+# 3. GET ORIGINAL DOCUMENT / PDF STREAM FOR PREVIEW
+# =========================================================
+
+@router.get(
+    "/scans/{scan_id}/file",
+    summary="Get Original Scan Document (PDF) — Stream original document file for inline preview",
+    status_code=status.HTTP_200_OK,
+)
+def get_scan_file(
+    scan_id: int,
+    client: dict = Depends(authenticate_client),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns the physical PDF document associated with the scan for inline preview.
+    Enforces tenant isolation: company can only view their own scan documents.
+    """
+    company_id = (
+        client.get("company_id")
+        or client.get("sub")
+        or ""
+    )
+
+    scan = (
+        db.query(DocumentScan)
+        .filter(
+            DocumentScan.id == scan_id,
+            DocumentScan.company_id == company_id,
+        )
+        .first()
+    )
+
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scan #{scan_id} not found or access denied.",
+        )
+
+    possible_paths = [
+        os.path.join("data", "uploads", scan.filename),
+        os.path.join("data", "uploads", os.path.basename(scan.filename)),
+        os.path.join("data", scan.filename),
+        os.path.join("data", os.path.basename(scan.filename)),
+        scan.filename,
+    ]
+
+    for file_path in possible_paths:
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            media_type = "application/pdf" if file_path.lower().endswith(".pdf") else "application/octet-stream"
+            return FileResponse(
+                path=file_path,
+                media_type=media_type,
+                headers={
+                    "Content-Disposition": f"inline; filename=\"{os.path.basename(file_path)}\"",
+                },
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Original document file '{scan.filename}' was not found on server disk.",
+    )
+
