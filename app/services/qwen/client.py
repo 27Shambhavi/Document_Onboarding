@@ -46,7 +46,7 @@ class UnifiedQwenClient:
             # Downscales massive document scans to prevent context window overflow
             img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
             buffer = BytesIO()
-            img.save(buffer, format="JPEG", quality=60, optimize=True)
+            img.save(buffer, format="JPEG", quality=50, optimize=True)
             return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     async def vision_async(
@@ -77,7 +77,7 @@ class UnifiedQwenClient:
                         model=self.vision_model,
                         messages=messages,
                         temperature=0.01,
-                        max_tokens=512, # Increased to capture full JSON extraction payloads
+                        max_tokens=300, # Increased to capture full JSON extraction payloads
                     )
                     return response.choices[0].message.content or "{}"
                 except Exception as exc:

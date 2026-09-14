@@ -11,6 +11,7 @@ from app.db.models import (  # noqa: F401
     JobDescription,
     ChatSession,
     ChatMessage,
+    CandidateMatch,
 )
 
 print("Creating / migrating database tables...")
@@ -57,6 +58,12 @@ MIGRATION_STMTS = [
     """
     CREATE INDEX IF NOT EXISTS ix_job_descriptions_company_id ON job_descriptions (company_id);
     """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_candidate_matches_company_id ON candidate_matches (company_id);
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS ix_candidate_matches_jd_id ON candidate_matches (job_description_id);
+    """,
 ]
 
 with engine.connect() as conn:
@@ -68,4 +75,4 @@ with engine.connect() as conn:
             print(f"  [migration] Notice (non-fatal): {exc}")
 
 print("Database tables created / migrated successfully.")
-print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans, job_descriptions, chat_sessions, chat_messages")
+print("  Tables: admin_users, companies (+signature_unlocked, +signature_unlock_token), invite_tokens, document_scans, job_descriptions, chat_sessions, chat_messages, candidate_matches")

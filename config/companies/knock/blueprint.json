@@ -1,0 +1,588 @@
+{
+  "total_documents_required": 10,
+  "required_document_types": [
+    "pan",
+    "aadhar",
+    "10th_mark_sheet",
+    "12th_mark_sheet",
+    "graduation_mark_sheet_certificate",
+    "cibil_consentauthorization_form",
+    "cibil_declaration_form",
+    "pf_nomination_form2",
+    "esic_declaration",
+    "cheque"
+  ],
+  "schemas": {
+    "pan": {
+      "document_type": "pan",
+      "display_name": "PAN",
+      "fields": [
+        {
+          "name": "pan_name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Name as mentioned on PAN card"
+        },
+        {
+          "name": "pan_dob",
+          "original_name": "Date of Birth",
+          "type": "date",
+          "required": true,
+          "description": "Date of birth as mentioned on PAN card"
+        },
+        {
+          "name": "pan_number",
+          "original_name": "PAN Number",
+          "type": "string",
+          "required": true,
+          "description": "Permanent Account Number"
+        },
+        {
+          "name": "pan_father_name",
+          "original_name": "Father Name",
+          "type": "string",
+          "required": true,
+          "description": "Father name as mentioned on PAN card"
+        }
+      ]
+    },
+    "aadhar": {
+      "document_type": "aadhar",
+      "display_name": "Aadhaar",
+      "fields": [
+        {
+          "name": "aadhar_name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Name as mentioned on Aadhaar"
+        },
+        {
+          "name": "aadhar_dob",
+          "original_name": "Date of Birth",
+          "type": "date",
+          "required": true,
+          "description": "Date of birth as mentioned on Aadhaar"
+        },
+        {
+          "name": "aadhar_number",
+          "original_name": "Aadhaar Number",
+          "type": "string",
+          "required": true,
+          "description": "Aadhaar identification number"
+        },
+        {
+          "name": "aadhar_father_name",
+          "original_name": "Father Name",
+          "type": "string",
+          "required": true,
+          "description": "Father name if available on document"
+        },
+        {
+          "name": "aadhar_address",
+          "original_name": "Address",
+          "type": "string",
+          "required": true,
+          "description": "Address as mentioned on Aadhaar"
+        }
+      ]
+    },
+    "10th_mark_sheet": {
+      "document_type": "10th_mark_sheet",
+      "display_name": "10th Mark Sheet",
+      "fields": [
+        {
+          "name": "tenth_name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Candidate name on 10th mark sheet"
+        },
+        {
+          "name": "tenth_marks",
+          "original_name": "Marks",
+          "type": "number",
+          "required": true,
+          "description": "Total marks or percentage obtained in 10th"
+        },
+        {
+          "name": "tenth_yop",
+          "original_name": "Year of Passing",
+          "type": "date",
+          "required": true,
+          "description": "Year/date of 10th examination result"
+        },
+        {
+          "name": "school_name",
+          "original_name": "School Name",
+          "type": "string",
+          "required": true,
+          "description": "School or institution name"
+        },
+        {
+          "name": "board_name",
+          "original_name": "Board Name",
+          "type": "string",
+          "required": true,
+          "description": "Education board name"
+        },
+        {
+          "name": "arrear_marks_accepted",
+          "original_name": "Arrear Marks Accepted",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether arrear marks are accepted"
+        }
+      ]
+    },
+    "12th_mark_sheet": {
+      "document_type": "12th_mark_sheet",
+      "display_name": "12th Mark Sheet",
+      "fields": [
+        {
+          "name": "twelfth_name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Candidate name on 12th mark sheet"
+        },
+        {
+          "name": "twelfth_yop",
+          "original_name": "Year of Passing",
+          "type": "date",
+          "required": true,
+          "description": "Year/date of 12th examination result"
+        },
+        {
+          "name": "twelfth_marks",
+          "original_name": "Marks",
+          "type": "number",
+          "required": true,
+          "description": "Total marks or percentage obtained in 12th"
+        },
+        {
+          "name": "school_name",
+          "original_name": "School Name",
+          "type": "string",
+          "required": true,
+          "description": "School or institution name"
+        },
+        {
+          "name": "board_name",
+          "original_name": "Board Name",
+          "type": "string",
+          "required": true,
+          "description": "Education board name"
+        },
+        {
+          "name": "arrear_marks_accepted",
+          "original_name": "Arrear Marks Accepted",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether arrear marks are accepted"
+        }
+      ]
+    },
+    "graduation_mark_sheet_certificate": {
+      "document_type": "graduation_mark_sheet_certificate",
+      "display_name": "Graduation Mark Sheet / Certificate",
+      "fields": [
+        {
+          "name": "grad_name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Candidate name on graduation document"
+        },
+        {
+          "name": "grad_marks",
+          "original_name": "Marks",
+          "type": "number",
+          "required": true,
+          "description": "Graduation marks or percentage"
+        },
+        {
+          "name": "grad_yop",
+          "original_name": "Year of Passing",
+          "type": "date",
+          "required": true,
+          "description": "Graduation year of passing"
+        },
+        {
+          "name": "degree_name",
+          "original_name": "Degree Name",
+          "type": "string",
+          "required": true,
+          "description": "Name of degree obtained"
+        },
+        {
+          "name": "universitycollege_name",
+          "original_name": "University/College Name",
+          "type": "string",
+          "required": true,
+          "description": "University or college name"
+        },
+        {
+          "name": "result_status",
+          "original_name": "Result Status",
+          "type": "string",
+          "required": true,
+          "description": "Graduation result status"
+        },
+        {
+          "name": "check_mark_sheet_is_original",
+          "original_name": "Check Mark Sheet is Original",
+          "type": "string",
+          "required": true,
+          "description": "Verification of original mark sheet"
+        },
+        {
+          "name": "printout_mark_sheet_not_acceptable",
+          "original_name": "Printout Mark Sheet Not Acceptable",
+          "type": "string",
+          "required": true,
+          "description": "Whether printed mark sheet is acceptable"
+        },
+        {
+          "name": "all_mark_sheets_in_one_pdf_including_arrear",
+          "original_name": "All Mark Sheets in One PDF Including Arrear",
+          "type": "string",
+          "required": true,
+          "description": "Verification that all mark sheets including arrears are included"
+        }
+      ]
+    },
+    "cibil_consentauthorization_form": {
+      "document_type": "cibil_consentauthorization_form",
+      "display_name": "CIBIL Consent / Authorization Form",
+      "fields": [
+        {
+          "name": "name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Candidate name"
+        },
+        {
+          "name": "dob",
+          "original_name": "Date of Birth",
+          "type": "date",
+          "required": true,
+          "description": "Candidate date of birth"
+        },
+        {
+          "name": "pan_no",
+          "original_name": "PAN Number",
+          "type": "string",
+          "required": true,
+          "description": "PAN number"
+        },
+        {
+          "name": "full_current_address",
+          "original_name": "Full Current Address",
+          "type": "string",
+          "required": true,
+          "description": "Current residential address"
+        },
+        {
+          "name": "mobile_no",
+          "original_name": "Mobile Number",
+          "type": "string",
+          "required": true,
+          "description": "Candidate mobile number"
+        },
+        {
+          "name": "bank_name",
+          "original_name": "Bank Name",
+          "type": "string",
+          "required": true,
+          "description": "Bank name"
+        },
+        {
+          "name": "bank_account_number",
+          "original_name": "Bank Account Number",
+          "type": "string",
+          "required": true,
+          "description": "Bank account number"
+        },
+        {
+          "name": "signature",
+          "original_name": "Signature",
+          "type": "string",
+          "required": true,
+          "description": "Candidate signature"
+        }
+      ]
+    },
+    "cibil_declaration_form": {
+      "document_type": "cibil_declaration_form",
+      "display_name": "CIBIL Declaration Form",
+      "fields": [
+        {
+          "name": "name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Candidate name"
+        },
+        {
+          "name": "current_address",
+          "original_name": "Current Address",
+          "type": "string",
+          "required": true,
+          "description": "Candidate current address"
+        },
+        {
+          "name": "signature",
+          "original_name": "Signature",
+          "type": "string",
+          "required": true,
+          "description": "Candidate signature"
+        }
+      ]
+    },
+    "pf_nomination_form2": {
+      "document_type": "pf_nomination_form2",
+      "display_name": "PF Nomination Form–2",
+      "fields": [
+        {
+          "name": "name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Employee name"
+        },
+        {
+          "name": "father_name",
+          "original_name": "Father Name",
+          "type": "string",
+          "required": true,
+          "description": "Father name"
+        },
+        {
+          "name": "dob",
+          "original_name": "Date of Birth",
+          "type": "date",
+          "required": true,
+          "description": "Employee date of birth"
+        },
+        {
+          "name": "address",
+          "original_name": "Address",
+          "type": "string",
+          "required": true,
+          "description": "Employee address"
+        },
+        {
+          "name": "sex",
+          "original_name": "Sex",
+          "type": "string",
+          "required": true,
+          "description": "Employee sex"
+        },
+        {
+          "name": "marital_status",
+          "original_name": "Marital Status",
+          "type": "string",
+          "required": true,
+          "description": "Employee marital status"
+        },
+        {
+          "name": "account_number",
+          "original_name": "Account Number",
+          "type": "string",
+          "required": true,
+          "description": "Employee bank account number"
+        },
+        {
+          "name": "current_address",
+          "original_name": "Current Address",
+          "type": "string",
+          "required": true,
+          "description": "Employee current address"
+        },
+        {
+          "name": "nominee_name",
+          "original_name": "Nominee Name",
+          "type": "string",
+          "required": true,
+          "description": "Nominee name"
+        },
+        {
+          "name": "nominee_address",
+          "original_name": "Nominee Address",
+          "type": "string",
+          "required": true,
+          "description": "Nominee address"
+        },
+        {
+          "name": "nominee_relationship",
+          "original_name": "Nominee Relationship",
+          "type": "string",
+          "required": true,
+          "description": "Relationship of nominee with employee"
+        },
+        {
+          "name": "nominee_total_share",
+          "original_name": "Nominee Total Share",
+          "type": "string",
+          "required": true,
+          "description": "Total share assigned to nominee"
+        },
+        {
+          "name": "signature_in_part_a",
+          "original_name": "Signature in Part A",
+          "type": "string",
+          "required": true,
+          "description": "Employee signature in Part A"
+        },
+        {
+          "name": "signature_in_part_b",
+          "original_name": "Signature in Part B",
+          "type": "string",
+          "required": true,
+          "description": "Employee signature in Part B"
+        }
+      ]
+    },
+    "esic_declaration": {
+      "document_type": "esic_declaration",
+      "display_name": "ESIC Declaration",
+      "fields": [
+        {
+          "name": "name",
+          "original_name": "Name",
+          "type": "string",
+          "required": true,
+          "description": "Employee name"
+        },
+        {
+          "name": "father_name",
+          "original_name": "Father Name",
+          "type": "string",
+          "required": true,
+          "description": "Father name"
+        },
+        {
+          "name": "dob",
+          "original_name": "Date of Birth",
+          "type": "date",
+          "required": true,
+          "description": "Employee date of birth"
+        },
+        {
+          "name": "marital_status",
+          "original_name": "Marital Status",
+          "type": "string",
+          "required": true,
+          "description": "Employee marital status"
+        },
+        {
+          "name": "sex",
+          "original_name": "Sex",
+          "type": "string",
+          "required": true,
+          "description": "Employee sex"
+        },
+        {
+          "name": "current_address",
+          "original_name": "Current Address",
+          "type": "string",
+          "required": true,
+          "description": "Employee current address"
+        },
+        {
+          "name": "account_no",
+          "original_name": "Account Number",
+          "type": "string",
+          "required": true,
+          "description": "Bank account number"
+        },
+        {
+          "name": "mobile_no",
+          "original_name": "Mobile Number",
+          "type": "string",
+          "required": true,
+          "description": "Employee mobile number"
+        },
+        {
+          "name": "email_id",
+          "original_name": "Email ID",
+          "type": "string",
+          "required": true,
+          "description": "Employee email address"
+        },
+        {
+          "name": "nominee_name",
+          "original_name": "Nominee Name",
+          "type": "string",
+          "required": true,
+          "description": "Nominee name"
+        },
+        {
+          "name": "nominee_address",
+          "original_name": "Nominee Address",
+          "type": "string",
+          "required": true,
+          "description": "Nominee address"
+        },
+        {
+          "name": "nominee_relationship",
+          "original_name": "Nominee Relationship",
+          "type": "string",
+          "required": true,
+          "description": "Relationship with nominee"
+        },
+        {
+          "name": "family_particulars_name_dob_relationship",
+          "original_name": "Family Particulars (Name, DOB, Relationship)",
+          "type": "array",
+          "required": true,
+          "description": "Family member details including name, date of birth and relationship"
+        }
+      ]
+    },
+    "cheque": {
+      "document_type": "cheque",
+      "display_name": "Cancelled Cheque",
+      "fields": [
+        {
+          "name": "bank_name",
+          "original_name": "Bank Name",
+          "type": "string",
+          "required": true,
+          "description": "Bank name printed on cheque"
+        },
+        {
+          "name": "name_of_candidate",
+          "original_name": "Name of Candidate",
+          "type": "string",
+          "required": true,
+          "description": "Candidate name on cheque"
+        },
+        {
+          "name": "bank_account_number",
+          "original_name": "Bank Account Number",
+          "type": "string",
+          "required": true,
+          "description": "Bank account number"
+        },
+        {
+          "name": "bank_ifsc_code",
+          "original_name": "Bank IFSC Code",
+          "type": "string",
+          "required": true,
+          "description": "Bank IFSC code"
+        },
+        {
+          "name": "branch_name",
+          "original_name": "Branch Name",
+          "type": "string",
+          "required": true,
+          "description": "Bank branch name"
+        }
+      ]
+    }
+  }
+}

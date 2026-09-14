@@ -10,6 +10,7 @@ Endpoints:
 """
 
 import asyncio
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -19,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import authenticate_client
 from app.db.database import get_db
-from app.db.models import DocumentScan, JobDescription
+from app.db.models import CandidateMatch, DocumentScan, JobDescription
 from app.services.guidelines.guideline_parser import extract_raw_text_from_file
 from app.services.jd_matcher import jd_matcher
 
@@ -120,15 +121,23 @@ async def analyze_job_description(
     final_title = job_title_override or extracted_reqs.get("job_title") or "Technical Position"
 
     # 3. Persist to Database with Tenant Isolation
-    jd_record = JobDescription(
-        company_id=company_id,
-        job_title=final_title,
-        raw_jd_text=raw_text,
-        extracted_requirements=extracted_reqs,
-    )
-    db.add(jd_record)
-    db.commit()
-    db.refresh(jd_record)
+    try:
+        jd_record = JobDescription(
+            company_id=company_id,
+            job_title=final_title,
+            raw_jd_text=raw_text,
+            extracted_requirements=extracted_reqs,
+        )
+        db.add(jd_record)
+        db.commit()
+        db.refresh(jd_record)
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"[hr_ranking] Failed to persist job description: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while saving job description: {str(exc)}",
+        )
 
     return {
         "status": "success",
@@ -163,12 +172,19 @@ def list_company_job_descriptions(
             detail="Could not determine company_id from token.",
         )
 
-    jds = (
-        db.query(JobDescription)
-        .filter(JobDescription.company_id == company_id)
-        .order_by(JobDescription.created_at.desc())
-        .all()
-    )
+    try:
+        jds = (
+            db.query(JobDescription)
+            .filter(JobDescription.company_id == company_id)
+            .order_by(JobDescription.created_at.desc())
+            .all()
+        )
+    except Exception as exc:
+        logger.error(f"[hr_ranking] Database error listing job descriptions for company '{company_id}': {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while fetching job descriptions: {str(exc)}",
+        )
 
     results = []
     for jd in jds:
@@ -207,11 +223,19 @@ def get_job_description(
             detail="Could not determine company_id from token.",
         )
 
-    jd = (
-        db.query(JobDescription)
-        .filter(JobDescription.id == jd_id, JobDescription.company_id == company_id)
-        .first()
-    )
+    try:
+        jd = (
+            db.query(JobDescription)
+            .filter(JobDescription.id == jd_id, JobDescription.company_id == company_id)
+            .first()
+        )
+    except Exception as exc:
+        logger.error(f"[hr_ranking] Database error fetching job description ID {jd_id}: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while retrieving job description: {str(exc)}",
+        )
+
     if not jd:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -258,11 +282,19 @@ async def rank_candidates_against_jd(
         )
 
     # 1. Verify JD belongs to tenant
-    jd = (
-        db.query(JobDescription)
-        .filter(JobDescription.id == jd_id, JobDescription.company_id == company_id)
-        .first()
-    )
+    try:
+        jd = (
+            db.query(JobDescription)
+            .filter(JobDescription.id == jd_id, JobDescription.company_id == company_id)
+            .first()
+        )
+    except Exception as exc:
+        logger.error(f"[hr_ranking] Database error querying job description {jd_id}: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while querying job description: {str(exc)}",
+        )
+
     if not jd:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -272,11 +304,18 @@ async def rank_candidates_against_jd(
     jd_requirements = jd.extracted_requirements or {}
 
     # 2. Fetch candidate DocumentScan records with strict tenant isolation and optional selective scan_ids
-    query = db.query(DocumentScan).filter(DocumentScan.company_id == company_id)
-    if payload and payload.scan_ids is not None:
-        query = query.filter(DocumentScan.id.in_(payload.scan_ids))
+    try:
+        query = db.query(DocumentScan).filter(DocumentScan.company_id == company_id)
+        if payload and payload.scan_ids is not None:
+            query = query.filter(DocumentScan.id.in_(payload.scan_ids))
 
-    scans = query.order_by(DocumentScan.created_at.desc()).all()
+        scans = query.order_by(DocumentScan.created_at.desc()).all()
+    except Exception as exc:
+        logger.error(f"[hr_ranking] Database error querying candidate scans for company '{company_id}': {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while querying candidate scans: {str(exc)}",
+        )
 
     if not scans:
         return {
@@ -295,72 +334,13 @@ async def rank_candidates_against_jd(
             "ranked_candidates": [],
         }
 
-    # 3. Concurrency-limited matching evaluation with graceful degradation
-    semaphore = asyncio.Semaphore(5)
-
-    async def _evaluate_scan(scan: DocumentScan):
-        async with semaphore:
-            try:
-                candidate_ocr = scan.extracted_json or {}
-                match_res = await jd_matcher.calculate_candidate_match(
-                    jd_requirements=jd_requirements,
-                    candidate_ocr_json=candidate_ocr,
-                    candidate_id=scan.id,
-                    filename=scan.filename,
-                )
-                # Add scan created_at for frontend timeline display
-                match_res["uploaded_at"] = scan.created_at.isoformat() if scan.created_at else ""
-                return match_res
-            except Exception as e:
-                logger.warning(
-                    f"[RANK SCAN ERROR] Gracefully degrading scan ID {scan.id} ('{scan.filename}'): {e}"
-                )
-                return {
-                    "candidate_id": str(scan.id),
-                    "candidate_name": f"Document #{scan.id}",
-                    "candidate_filename": scan.filename,
-                    "candidate_email": "N/A",
-                    "score": 0,
-                    "rank": 0,
-                    "match_status": "WEAK",
-                    "score_breakdown": {
-                        "skills": 0,
-                        "experience": 0,
-                        "education": 0,
-                        "certifications": 0,
-                    },
-                    "matched_requirements": [],
-                    "missing_requirements": [
-                        {
-                            "category": "All",
-                            "requirement": "Resume Data",
-                            "reason": "No relevant professional data found in document.",
-                        }
-                    ],
-                    "recommendation": "Document does not appear to be a relevant resume. Zero match.",
-                    "extracted_skills": [],
-                    "uploaded_at": scan.created_at.isoformat() if scan.created_at else "",
-                }
-
-    tasks = [_evaluate_scan(s) for s in scans]
-    evaluated_candidates = await asyncio.gather(*tasks)
-
-    # 4. Sort candidates descending by match score
-    evaluated_candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
-
-    # 5. Assign explicit ranks (#1, #2, ...)
-    for idx, cand in enumerate(evaluated_candidates, start=1):
-        cand["rank"] = idx
-
-    # 6. Compute executive KPIs
-    total_candidates = len(evaluated_candidates)
-    top_match = evaluated_candidates[0]["score"] if total_candidates > 0 else 0
-    avg_match = (
-        round(sum(c["score"] for c in evaluated_candidates) / total_candidates, 1)
-        if total_candidates > 0
-        else 0
+    # 3. Evaluate & Persist Candidate Matches via JDMatcherService
+    evaluated_candidates, kpis = await jd_matcher.rank_and_persist_candidates(
+        db=db,
+        company_id=company_id,
+        jd=jd,
+        scans=scans,
     )
-    strong_count = sum(1 for c in evaluated_candidates if c["score"] >= 75)
 
     return {
         "status": "success",
@@ -369,11 +349,8 @@ async def rank_candidates_against_jd(
             "job_title": jd.job_title,
             "extracted_requirements": jd_requirements,
         },
-        "kpis": {
-            "total_candidates_analyzed": total_candidates,
-            "top_match_percentage": top_match,
-            "average_match_percentage": avg_match,
-            "strong_matches_count": strong_count,
-        },
+        "kpis": kpis,
         "ranked_candidates": evaluated_candidates,
     }
+
+

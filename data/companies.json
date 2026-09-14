@@ -40,5 +40,11 @@
     "company_name": "Company COMP-SIG-BURN-TEST",
     "is_signature_addon_enabled": true,
     "created_at": "2026-09-08T05:56:42.975433+00:00"
+  },
+  "knock": {
+    "company_id": "knock",
+    "company_name": "Company knock",
+    "is_signature_addon_enabled": false,
+    "created_at": "2026-09-11T11:26:39.683243+00:00"
   }
 }

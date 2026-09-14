@@ -143,6 +143,13 @@ class Company(Base):
         order_by="ChatSession.updated_at.desc()",
     )
 
+    candidate_matches: Mapped[List["CandidateMatch"]] = relationship(
+        "CandidateMatch",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="CandidateMatch.created_at.desc()",
+    )
+
 
 # =========================================================
 # DOCUMENT SCAN HISTORY — Task 1
@@ -304,6 +311,13 @@ class JobDescription(Base):
         back_populates="job_descriptions",
     )
 
+    candidate_matches: Mapped[List["CandidateMatch"]] = relationship(
+        "CandidateMatch",
+        back_populates="job_description",
+        cascade="all, delete-orphan",
+        order_by="CandidateMatch.created_at.desc()",
+    )
+
 
 # =========================================================
 # CHATBOT SESSIONS & MESSAGES (RAG Chatbot History)
@@ -423,4 +437,89 @@ class ChatMessage(Base):
         "ChatSession",
         back_populates="messages",
     )
-
+
+
+# =========================================================
+# CANDIDATE MATCHES (AI Candidate Matching & Rankings)
+# =========================================================
+
+class CandidateMatch(Base):
+    """
+    Stores AI candidate match evaluations against Job Descriptions,
+    including scores, categories, matched competencies, and gap summaries.
+    """
+    __tablename__ = "candidate_matches"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("companies.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    job_description_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("job_descriptions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    candidate_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    document_filename: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    match_score: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    match_category: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    matched_competencies: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    gaps_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    gaps_summary: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    company: Mapped["Company"] = relationship(
+        "Company",
+        back_populates="candidate_matches",
+    )
+
+    job_description: Mapped[Optional["JobDescription"]] = relationship(
+        "JobDescription",
+        back_populates="candidate_matches",
+    )
