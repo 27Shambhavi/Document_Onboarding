@@ -13,6 +13,7 @@ import {
   FileText,
   Loader2,
   ChevronDown,
+  ChevronUp,
   ExternalLink,
 } from 'lucide-react';
 
@@ -37,6 +38,71 @@ const FALLBACK_SUGGESTIONS = [
   'What is the document quality of the latest upload?',
   'Check active guideline compliance policies',
 ];
+
+interface SourcesCollapsibleProps {
+  sources: SourceReference[];
+  isDark: boolean;
+}
+
+const SourcesCollapsible: React.FC<SourcesCollapsibleProps> = ({ sources, isDark }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!sources || sources.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2.5 pt-2 border-t border-slate-700/40 dark:border-slate-700/40">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors cursor-pointer select-none rounded px-1.5 py-0.5 -ml-1 ${
+          isDark
+            ? 'text-indigo-400 hover:text-indigo-300 hover:bg-slate-700/50'
+            : 'text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50'
+        }`}
+        aria-expanded={isOpen}
+      >
+        <FileText className="w-3 h-3 flex-shrink-0" />
+        <span>Sources ({sources.length})</span>
+        {isOpen ? (
+          <ChevronUp className="w-3.5 h-3.5 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 space-y-1 animate-in fade-in duration-150">
+          <div className="flex flex-wrap gap-1">
+            {sources.map((src, idx) => (
+              <span
+                key={idx}
+                className={`text-[10px] px-2 py-0.5 rounded-md font-mono inline-flex items-center gap-1 ${
+                  isDark
+                    ? 'bg-slate-900/80 text-slate-300 border border-slate-700/80'
+                    : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+                title={
+                  src.document_name
+                    ? `${src.document_name} (${src.table} #${src.id})`
+                    : `${src.table} #${src.id}`
+                }
+              >
+                <span>{src.file_name || src.document_name || `Record #${src.id}`}</span>
+                {src.document_type && (
+                  <span className="text-[9px] opacity-75 font-sans">
+                    ({src.document_type})
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const ChatbotWidget: React.FC = () => {
   const navigate = useNavigate();
@@ -292,28 +358,9 @@ export const ChatbotWidget: React.FC = () => {
                   >
                     <div className="space-y-1">{renderFormattedText(msg.text)}</div>
 
-                    {/* SOURCE TRACEABILITY CITATIONS */}
+                    {/* SOURCE TRACEABILITY CITATIONS (COLLAPSED BY DEFAULT) */}
                     {msg.sources && msg.sources.length > 0 && (
-                      <div className="mt-2.5 pt-2 border-t border-slate-700/40 dark:border-slate-700/40">
-                        <div className="text-[10px] font-semibold text-indigo-400 mb-1 flex items-center gap-1">
-                          <FileText className="w-3 h-3" />
-                          <span>Sources Referenced:</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {msg.sources.map((src, idx) => (
-                            <span
-                              key={idx}
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-mono ${
-                                isDark
-                                  ? 'bg-slate-900/80 text-slate-300 border border-slate-700/80'
-                                  : 'bg-white text-slate-700 border border-slate-200'
-                              }`}
-                            >
-                              {src.file_name || src.document_name || `Record #${src.id}`}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
+                      <SourcesCollapsible sources={msg.sources} isDark={isDark} />
                     )}
                   </div>
                 </div>
