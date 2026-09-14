@@ -23,7 +23,7 @@ class UnifiedQwenClient:
         self.client = AsyncOpenAI(
             base_url=self.base_url,
             api_key=self.api_key,
-            timeout=httpx.Timeout(120.0, connect=20.0), # Extended for heavy 32B model processing
+            timeout=httpx.Timeout(1200.0, connect=200.0), # Extended for heavy 32B model processing
             max_retries=3,
         )
 
@@ -77,7 +77,7 @@ class UnifiedQwenClient:
                         model=self.vision_model,
                         messages=messages,
                         temperature=0.01,
-                        max_tokens=300, # Increased to capture full JSON extraction payloads
+                        max_tokens=512, # Increased to capture full JSON extraction payloads
                     )
                     return response.choices[0].message.content or "{}"
                 except Exception as exc:
