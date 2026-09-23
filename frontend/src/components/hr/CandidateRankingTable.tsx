@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Search,
   ChevronRight,
@@ -412,54 +413,66 @@ export const CandidateRankingTable: React.FC<CandidateRankingTableProps> = ({
                       >
                         {/* Allocate / Approve Button */}
                         {!isAllocated ? (
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                             type="button"
                             onClick={() => onAllocateCandidate && onAllocateCandidate(cand)}
                             disabled={isActionBusy}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 transform-gpu will-change-transform"
                             title="Allocate candidate to this project"
                           >
                             <UserCheck className="w-3.5 h-3.5" />
                             <span>Allocate to Project</span>
-                          </button>
+                          </motion.button>
                         ) : (
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                             type="button"
                             onClick={() => onRejectCandidate && onRejectCandidate(cand)}
                             disabled={isActionBusy}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-[11px] font-semibold cursor-pointer disabled:opacity-50 transform-gpu will-change-transform"
                             title="Release resource from project"
                           >
                             <UserX className="w-3 h-3" />
                             <span>Release</span>
-                          </button>
+                          </motion.button>
                         )}
 
                         {/* Reject / Pass Button */}
                         {!isAllocated && !isRejected && (
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.96 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                             type="button"
                             onClick={() => onRejectCandidate && onRejectCandidate(cand)}
                             disabled={isActionBusy}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold cursor-pointer disabled:opacity-50 transform-gpu will-change-transform"
                             title="Reject / Pass on candidate"
                           >
                             <XCircle className="w-3 h-3" />
                             <span>Reject / Pass</span>
-                          </button>
+                          </motion.button>
                         )}
 
                         {/* Explain Match Button */}
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.96 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                           type="button"
                           onClick={() => onSelectCandidate(cand)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold cursor-pointer transform-gpu will-change-transform"
                           title="View complete Explainable AI match proofs"
                         >
                           <Sparkles className="w-3 h-3" />
                           <span>Proof</span>
                           <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                        </button>
+                        </motion.button>
                       </div>
                     </td>
                   </tr>
@@ -475,7 +488,7 @@ export const CandidateRankingTable: React.FC<CandidateRankingTableProps> = ({
         <span>Showing {filteredCandidates.length} evaluated candidate profiles</span>
         <span className="flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-indigo-600" />
-          <span>Explainable AI Project Allotment Engine</span>
+          <span>Explainable AI Talent Matching Engine</span>
         </span>
       </div>
     </div>

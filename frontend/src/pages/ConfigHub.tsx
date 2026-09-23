@@ -5,7 +5,6 @@ import {
   FileCode,
   Upload,
   FileText,
-  Sliders,
   CheckCircle,
   Code2,
   Copy,
@@ -221,20 +220,7 @@ export const ConfigHub: React.FC = () => {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-300">
-      
-      {/* HEADER BAR */}
-      <div className="border-b border-slate-200/10 pb-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Sliders className="w-6 h-6 text-indigo-500" />
-            Intelligence Configuration Hub
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Define document extraction blueprints and set compliance rules evaluated during candidate audits.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-8">
 
       {/* ================================================================ */}
       {/* SECTION 1: OCR BLUEPRINT (SPLIT-SCREEN) */}

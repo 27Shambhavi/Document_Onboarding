@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useTheme, useAuth } from '../App';
 import {
   LayoutDashboard,
@@ -25,7 +26,7 @@ const navigationItems = [
     description: 'System metrics, document throughput, & engine health',
   },
   {
-    name: 'Intelligence Config',
+    name: 'Screening Criteria',
     path: '/config',
     icon: Sliders,
     description: 'OCR Schema Blueprints & Compliance Policy Guidelines',
@@ -34,21 +35,18 @@ const navigationItems = [
     name: 'Audit Engine',
     path: '/audit',
     icon: ShieldCheck,
-    badge: 'Core',
     description: 'Candidate OCR extraction & Guideline evaluation pipeline',
   },
   {
-    name: 'AI Project Allotment Engine',
+    name: 'AI Talent Matching',
     path: '/hr/projects',
     icon: UserCheck,
-    badge: 'XAI',
     description: 'Enterprise project resource allocation & Explainable AI candidate matching',
   },
   {
     name: 'Assistant',
     path: '/rag',
     icon: Bot,
-    badge: 'AI',
     description: 'Document intelligence Q&A with compliance audit history',
   },
   {
@@ -59,6 +57,70 @@ const navigationItems = [
   },
 ];
 
+const getRouteHeader = (pathname: string) => {
+  if (pathname.includes('/candidate/')) {
+    return {
+      title: 'Candidate Profile & Qualifications',
+      subtitle: 'Comprehensive candidate dossier, extracted qualifications, and suitability assessment.',
+      badge: 'Talent Record',
+    };
+  }
+  if (pathname.startsWith('/hr/projects/') && pathname !== '/hr/projects') {
+    return {
+      title: 'Project Allocation & Team Roster',
+      subtitle: 'Manage assigned team members and evaluate candidate scans for this project.',
+      badge: 'Project Detail',
+    };
+  }
+  if (pathname.startsWith('/scan/')) {
+    return {
+      title: 'Document Verification Scan',
+      subtitle: 'In-depth OCR field extraction results and policy compliance audit details.',
+      badge: 'Audit Record',
+    };
+  }
+  if (pathname === '/config') {
+    return {
+      title: 'Screening Criteria & Intelligence Blueprints',
+      subtitle: 'Configure OCR document schemas, field extraction blueprints, and policy verification guidelines.',
+      badge: 'Policy Engine',
+    };
+  }
+  if (pathname === '/audit') {
+    return {
+      title: 'Document Audit & Compliance Engine',
+      subtitle: 'Automated candidate OCR extraction, schema compliance, and multi-stage guideline evaluation.',
+      badge: 'Verification Pipeline',
+    };
+  }
+  if (pathname === '/hr/projects' || pathname === '/hr-ranking') {
+    return {
+      title: 'AI Talent Matching & Project Allotment',
+      subtitle: 'Manage active enterprise project allocations, team requirements, and resource capacities.',
+      badge: 'Portfolio Master',
+    };
+  }
+  if (pathname === '/rag' || pathname === '/chatbot' || pathname === '/chatbot-history') {
+    return {
+      title: 'Document Intelligence Assistant',
+      subtitle: 'Interactive natural language Q&A grounded strictly in candidate documents and compliance policies.',
+      badge: 'RAG Intelligence',
+    };
+  }
+  if (pathname === '/billing') {
+    return {
+      title: 'Billing & Enterprise Usage Analytics',
+      subtitle: 'Live document consumption metrics, per-page rate configurations, and add-on subscriptions.',
+      badge: 'Enterprise Tier',
+    };
+  }
+  return {
+    title: 'Executive Overview & System Metrics',
+    subtitle: 'Real-time document throughput, onboarding verification metrics, and audit history.',
+    badge: 'Production',
+  };
+};
+
 export const DashboardLayout: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
@@ -66,13 +128,7 @@ export const DashboardLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const activeNavItem =
-    navigationItems.find(
-      (item) =>
-        item.path === location.pathname ||
-        (item.path === '/hr/projects' && (location.pathname.startsWith('/hr/projects') || location.pathname === '/hr-ranking')) ||
-        (item.path === '/rag' && location.pathname === '/chatbot')
-    ) || navigationItems[0];
+  const pageHeader = getRouteHeader(location.pathname);
 
   return (
     <div className={`flex h-screen overflow-hidden flex-col md:flex-row transition-colors duration-200 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -164,11 +220,6 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     <Icon className={`w-5 h-5 flex-shrink-0 ${isItemActive ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-300'}`} />
                     {!collapsed && <span className="ml-3 truncate">{item.name}</span>}
-                    {!collapsed && item.badge && (
-                      <span className="ml-auto px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                        {item.badge}
-                      </span>
-                    )}
                   </>
                 )}
               </NavLink>
@@ -192,9 +243,12 @@ export const DashboardLayout: React.FC = () => {
             )}
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.01, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             onClick={logout}
-            className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               isDark ? 'text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20' : 'text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200'
             }`}
             title="Sign out of enterprise account"
@@ -203,7 +257,7 @@ export const DashboardLayout: React.FC = () => {
               <LogOut className="w-4 h-4" />
               {!collapsed && <span>Sign Out</span>}
             </div>
-          </button>
+          </motion.button>
         </div>
       </aside>
 
@@ -213,26 +267,34 @@ export const DashboardLayout: React.FC = () => {
         <header className={`sticky top-0 z-30 px-6 py-4 border-b backdrop-blur-xl flex items-center justify-between transition-colors flex-shrink-0 ${
           isDark ? 'bg-slate-950/80 border-slate-800/80' : 'bg-white/80 border-slate-200'
         }`}>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-              {activeNavItem.name}
-              <span className={`hidden sm:inline-flex text-xs px-2.5 py-0.5 rounded-full font-medium border ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-              }`}>
-                Production
-              </span>
+          <div className="min-w-0 pr-4">
+            <h1 className="text-xl font-bold tracking-tight flex items-center gap-2.5 truncate">
+              <span>{pageHeader.title}</span>
+              {pageHeader.badge && (
+                <span className={`hidden sm:inline-flex text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${
+                  isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                }`}>
+                  {pageHeader.badge}
+                </span>
+              )}
             </h1>
-            <p className={`text-xs mt-0.5 hidden sm:block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              {activeNavItem.description}
+            <p className={`text-xs mt-0.5 truncate hidden sm:block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              {pageHeader.subtitle}
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* PORTAL FOR PAGE ACTIONS */}
+            <div id="dashboard-header-actions" className="flex items-center space-x-2.5" />
+
             {/* THEME TOGGLE SWITCH */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03, y: -1 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={toggleTheme}
               aria-label="Toggle dark mode"
-              className={`p-2 rounded-xl border transition-all flex items-center gap-2 ${
+              className={`p-2 rounded-xl border transition-all flex items-center gap-2 cursor-pointer ${
                 isDark
                   ? 'bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800 hover:border-slate-700'
                   : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
@@ -249,12 +311,12 @@ export const DashboardLayout: React.FC = () => {
                   <span className="text-xs font-semibold text-slate-700 hidden sm:inline">Dark</span>
                 </>
               )}
-            </button>
+            </motion.button>
           </div>
         </header>
 
-        {/* PAGE CONTENT OUTLET */}
-        <main className="flex-1 p-4 md:p-8 pb-32">
+        {/* MAIN PAGE CONTENT CONTAINER */}
+        <main className="flex-1 p-4 md:p-8 pb-32 overflow-x-hidden">
           <Outlet />
         </main>
       </div>

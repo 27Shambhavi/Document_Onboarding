@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme, useAuth } from '../App';
 import { api } from '../api/client';
+import { PageHeaderActions } from '../components/PageHeaderActions';
 import {
-  CreditCard,
   IndianRupee,
   FileCheck,
   CheckCircle,
@@ -184,28 +184,15 @@ export const Billing: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      
-      {/* HEADER BAR */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/10 pb-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-indigo-500" />
-            Billing &amp; Usage Analytics
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Live consumption metrics, dynamic rate configurations, and signature verification subscription.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <span className={`text-xs px-3 py-1.5 rounded-full font-semibold border ${
-            isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
-          }`}>
-            Organization: <strong className="text-indigo-400">{companyName || 'Registered Client'}</strong>{companyId ? ` (${companyId})` : ''}
-          </span>
-        </div>
-      </div>
+    <div className="space-y-8">
+      {/* TOP HEADER ACTIONS */}
+      <PageHeaderActions>
+        <span className={`text-xs px-3 py-1.5 rounded-full font-semibold border ${
+          isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
+        }`}>
+          Organization: <strong className="text-indigo-400">{companyName || 'Technova Solutions Pvt Ltd'}</strong>{companyId ? ` (${companyId})` : ''}
+        </span>
+      </PageHeaderActions>
 
       {/* ERROR ALERT BANNER */}
       {errorState && (

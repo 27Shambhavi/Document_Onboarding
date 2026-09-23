@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import {
   Users,
   CheckCircle2,
@@ -115,10 +116,12 @@ export const AllocatedResourcesGrid: React.FC<AllocatedResourcesGridProps> = ({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {allocatedResources.map((member) => (
-            <div
+            <motion.div
               key={member.id}
+              whileHover={{ scale: 1.01, y: -2 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={() => onSelectCandidate && onSelectCandidate(member)}
-              className="p-4 rounded-xl border border-emerald-200 bg-gradient-to-b from-white to-emerald-50/20 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all group flex flex-col justify-between cursor-pointer"
+              className="p-4 rounded-xl border border-emerald-200 bg-gradient-to-b from-white to-emerald-50/20 shadow-sm hover:shadow-md hover:border-emerald-300 transition-shadow group flex flex-col justify-between cursor-pointer transform-gpu will-change-transform"
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -171,35 +174,41 @@ export const AllocatedResourcesGrid: React.FC<AllocatedResourcesGridProps> = ({
 
                 <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                   {onSelectCandidate && (
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectCandidate(member);
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors cursor-pointer transform-gpu will-change-transform"
                     >
                       View Profile & Proof
-                    </button>
+                    </motion.button>
                   )}
                   {onDeallocate && (
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeallocate(member.candidate_id || member.id);
                       }}
                       disabled={isLoading}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-semibold transition-colors cursor-pointer disabled:opacity-50 transform-gpu will-change-transform"
                       title="Deallocate resource from project"
                     >
                       <UserMinus className="w-3 h-3" />
                       <span>Release / Remove</span>
-                    </button>
+                    </motion.button>
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}

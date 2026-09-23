@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { PageHeaderActions } from '../components/PageHeaderActions';
 
 interface SourceReference {
   table: string;
@@ -268,47 +269,29 @@ export const ChatbotHistory: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Top Banner & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 flex-shrink-0">
-            <MessageSquare className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <span>RAG Assistant & Query History</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold uppercase tracking-wider">
-                PostgreSQL Grounded
-              </span>
-            </h1>
-            <p className="text-slate-500 mt-1 text-xs">
-              Natural language intelligence grounded strictly in your company's uploaded candidate documents and compliance policies.
-            </p>
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-2.5">
+      {/* TOP HEADER ACTIONS */}
+      <PageHeaderActions>
+        <span className="hidden sm:inline-flex text-[11px] px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border dark:border-indigo-500/20 font-bold uppercase tracking-wider">
+          PostgreSQL Grounded
+        </span>
+        <button
+          onClick={handleCreateNewSession}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New Conversation</span>
+        </button>
+        {sessions.length > 0 && (
           <button
-            onClick={handleCreateNewSession}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
+            onClick={handleClearAllHistory}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+            title="Clear all stored chat history"
           >
-            <Plus className="w-4 h-4" />
-            <span>New Conversation</span>
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+            <span className="hidden sm:inline">Clear History</span>
           </button>
-
-          {sessions.length > 0 && (
-            <button
-              onClick={handleClearAllHistory}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold transition-all cursor-pointer shadow-sm"
-              title="Clear all stored chat history"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-              <span className="hidden sm:inline">Clear History</span>
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeaderActions>
 
       {/* Notifications */}
       {errorNotice && (

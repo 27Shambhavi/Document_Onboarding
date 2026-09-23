@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderKanban,
   Users,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { Project } from '../api/client';
+import { PageHeaderActions } from '../components/PageHeaderActions';
 
 export const ProjectsMasterList: React.FC = () => {
   const navigate = useNavigate();
@@ -180,37 +182,19 @@ export const ProjectsMasterList: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* HEADER BAR */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <FolderKanban className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                  AI Project Allotment Engine
-                </h1>
-                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Portfolio Master
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Manage active enterprise project allocations, team requirements, and resource capacities.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
+      {/* TOP HEADER ACTIONS (TELEPORTED TO MAIN TOP PAGE HEADER) */}
+      <PageHeaderActions>
+        <motion.button
+          whileHover={{ scale: 1.01, y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer transform-gpu will-change-transform"
         >
           <Plus className="w-4 h-4" />
           <span>New Project Setup / Add Project</span>
-        </button>
-      </div>
+        </motion.button>
+      </PageHeaderActions>
 
       {/* FEEDBACK BANNERS */}
       {errorMessage && (
@@ -339,9 +323,11 @@ export const ProjectsMasterList: React.FC = () => {
             const skills = project.required_skills || [];
 
             return (
-              <div
+              <motion.div
                 key={project.id}
-                className="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-5 group"
+                whileHover={{ scale: 1.01, y: -2 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between p-5 group transform-gpu will-change-transform"
               >
                 <div>
                   {/* Top Badges */}
@@ -448,259 +434,305 @@ export const ProjectsMasterList: React.FC = () => {
                   </span>
 
                   <div className="flex items-center gap-2">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       onClick={() => setProjectToDelete(project)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer transform-gpu will-change-transform"
                       title="Delete Project"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       onClick={() => navigate(`/hr/projects/${project.id}`)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 text-xs font-bold transition-all shadow-sm cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 text-xs font-bold transition-all shadow-sm cursor-pointer transform-gpu will-change-transform"
                     >
                       <span>View / Manage</span>
                       <ExternalLink className="w-3 h-3" />
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
       {/* MODAL: NEW PROJECT SETUP */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <FolderKanban className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">New Project Setup / Add Project</h3>
-                  <p className="text-xs text-slate-500">Define requirements and needed capacity for candidate matching.</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateProject} className="space-y-4">
-              {/* Field 1: Project Name */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  1. Project Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Autonomous Vision QA Platform"
-                  value={projectNameInput}
-                  onChange={(e) => setProjectNameInput(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
-                />
-              </div>
-
-              {/* Field 2: Project Code / ID */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  2. Project Code / ID <span className="text-slate-400">(Optional — Auto-generated if blank)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. PRJ-VISION-01"
-                  value={projectCodeInput}
-                  onChange={(e) => setProjectCodeInput(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
-                />
-              </div>
-
-              {/* Field 3: Required Technical & Domain Skills */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  3. Required Technical & Domain Skills <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Python, PyTorch, Computer Vision, FastAPI, Docker, Kubernetes"
-                  value={requiredSkillsInput}
-                  onChange={(e) => setRequiredSkillsInput(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">Separate competencies with commas.</p>
-              </div>
-
-              {/* Field 4: Experience & Education Requirements */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    4a. Experience Requirements
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 3+ years in AI Engineering"
-                    value={experienceInput}
-                    onChange={(e) => setExperienceInput(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    4b. Education Requirements
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. B.Tech / M.S. in Computer Science"
-                    value={educationInput}
-                    onChange={(e) => setEducationInput(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Field 5: Team Capacity / Needed Allocation Count */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  5. Team Capacity / Needed Allocation Count <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  required
-                  value={teamCapacityInput}
-                  onChange={(e) => setTeamCapacityInput(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900 font-bold"
-                />
-              </div>
-
-              {/* Optional: Raw Spec or File */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Optional: Project Specification Document or Text
-                </label>
-                <div className="space-y-2">
-                  <textarea
-                    rows={3}
-                    placeholder="Paste detailed project architecture, objectives, or deliverable requirements..."
-                    value={rawSpecInput}
-                    onChange={(e) => setRawSpecInput(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900 font-mono"
-                  />
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer shadow-sm">
-                      <Upload className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{projectFile ? projectFile.name : 'Upload Spec File (.pdf, .docx, .txt)'}</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.docx,.txt"
-                        className="hidden"
-                        onChange={(e) => setProjectFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
-                    {projectFile && (
-                      <button
-                        type="button"
-                        onClick={() => setProjectFile(null)}
-                        className="text-xs text-rose-600 hover:underline cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    )}
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto transform-gpu will-change-transform"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <FolderKanban className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">New Project Setup / Add Project</h3>
+                    <p className="text-xs text-slate-500">Define requirements and needed capacity for candidate matching.</p>
                   </div>
                 </div>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
+              <form onSubmit={handleCreateProject} className="space-y-4">
+                {/* Field 1: Project Name */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    1. Project Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Autonomous Vision QA Platform"
+                    value={projectNameInput}
+                    onChange={(e) => setProjectNameInput(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
+                  />
+                </div>
+
+                {/* Field 2: Project Code / ID */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    2. Project Code / ID <span className="text-slate-400">(Optional — Auto-generated if blank)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. PRJ-VISION-01"
+                    value={projectCodeInput}
+                    onChange={(e) => setProjectCodeInput(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
+                  />
+                </div>
+
+                {/* Field 3: Required Technical & Domain Skills */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    3. Required Technical & Domain Skills <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Python, PyTorch, Computer Vision, FastAPI, Docker, Kubernetes"
+                    value={requiredSkillsInput}
+                    onChange={(e) => setRequiredSkillsInput(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">Separate competencies with commas.</p>
+                </div>
+
+                {/* Field 4: Experience & Education Requirements */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      4a. Experience Requirements
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 3+ years in AI Engineering"
+                      value={experienceInput}
+                      onChange={(e) => setExperienceInput(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      4b. Education Requirements
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. B.Tech / M.S. in Computer Science"
+                      value={educationInput}
+                      onChange={(e) => setEducationInput(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Field 5: Team Capacity / Needed Allocation Count */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    5. Team Capacity / Needed Allocation Count <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    required
+                    value={teamCapacityInput}
+                    onChange={(e) => setTeamCapacityInput(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900 font-bold"
+                  />
+                </div>
+
+                {/* Optional: Raw Spec or File */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Optional: Project Specification Document or Text
+                  </label>
+                  <div className="space-y-2">
+                    <textarea
+                      rows={3}
+                      placeholder="Paste detailed project architecture, objectives, or deliverable requirements..."
+                      value={rawSpecInput}
+                      onChange={(e) => setRawSpecInput(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white text-slate-900 font-mono"
+                    />
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer shadow-sm">
+                        <Upload className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{projectFile ? projectFile.name : 'Upload Spec File (.pdf, .docx, .txt)'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.docx,.txt"
+                          className="hidden"
+                          onChange={(e) => setProjectFile(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                      {projectFile && (
+                        <button
+                          type="button"
+                          onClick={() => setProjectFile(null)}
+                          className="text-xs text-rose-600 hover:underline cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <motion.button
+                    whileHover={{ scale: 1.01, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transform-gpu will-change-transform"
+                  >
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.01, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    type="submit"
+                    disabled={isCreating}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 disabled:opacity-50 cursor-pointer transform-gpu will-change-transform"
+                  >
+                    {isCreating ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Creating Project...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Setup & Analyze Project</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: DELETE CONFIRMATION */}
+      <AnimatePresence>
+        {projectToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 transform-gpu will-change-transform"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+
+              <div className="text-center space-y-1.5">
+                <h3 className="text-base font-bold text-slate-900">Delete Project Specification?</h3>
+                <p className="text-xs text-slate-500">
+                  Are you sure you want to delete <span className="font-bold text-slate-800">"{projectToDelete.project_name}"</span> (
+                  <span className="font-mono text-slate-700">{projectToDelete.project_code}</span>)?
+                </p>
+                <p className="text-[11px] text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100 mt-2">
+                  This will deallocate all assigned team members and reset their status to PENDING so they can be reassigned to other projects.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <motion.button
+                  whileHover={{ scale: 1.01, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer"
+                  onClick={() => setProjectToDelete(null)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transform-gpu will-change-transform"
                 >
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreating}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 disabled:opacity-50 cursor-pointer"
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.01, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 disabled:opacity-50 cursor-pointer transform-gpu will-change-transform"
                 >
-                  {isCreating ? (
+                  {isDeleting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Creating Project...</span>
+                      <span>Deleting...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Setup & Analyze Project</span>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Confirm Delete</span>
                     </>
                   )}
-                </button>
+                </motion.button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: DELETE CONFIRMATION */}
-      {projectToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center mx-auto">
-              <Trash2 className="w-6 h-6" />
-            </div>
-
-            <div className="text-center space-y-1.5">
-              <h3 className="text-base font-bold text-slate-900">Delete Project Specification?</h3>
-              <p className="text-xs text-slate-500">
-                Are you sure you want to delete <span className="font-bold text-slate-800">"{projectToDelete.project_name}"</span> (
-                <span className="font-mono text-slate-700">{projectToDelete.project_code}</span>)?
-              </p>
-              <p className="text-[11px] text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100 mt-2">
-                This will deallocate all assigned team members and reset their status to PENDING so they can be reassigned to other projects.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setProjectToDelete(null)}
-                disabled={isDeleting}
-                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 disabled:opacity-50 cursor-pointer"
-              >
-                {isDeleting ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Confirm Delete</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -24,14 +24,14 @@ export const LoginPage: React.FC = () => {
   // Mode: 'login' (Client), 'onboard' (Company Registration), 'admin' (Admin Sign In)
   const [mode, setMode] = useState<'login' | 'onboard' | 'admin'>('login');
 
-  const [email, setEmail] = useState('admin@enterprise.com');
-  const [password, setPassword] = useState('DocVerify2026!');
+  const [email, setEmail] = useState('consultancy@technova.com');
+  const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
 
   // Onboarding fields
   const [companyId, setCompanyId] = useState('COMP-88490');
-  const [companyName, setCompanyName] = useState('Acme Enterprise Corp');
-  const [inviteToken, setInviteToken] = useState('INVITE-DOCVERIFY-9921');
+  const [companyName, setCompanyName] = useState('Enterprise Corp');
+  const [inviteToken, setInviteToken] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -78,17 +78,17 @@ export const LoginPage: React.FC = () => {
 
   const autofillDemo = () => {
     if (mode === 'admin') {
-      setEmail('admin@docverify.ai');
-      setPassword('AdminSecretKey2026!');
+      setEmail('admin@example.com');
+      setPassword('password123');
     } else if (mode === 'onboard') {
-      setEmail('onboarding@acme-corp.com');
-      setPassword('CompanyPass123!');
-      setCompanyId('COMP-77391');
-      setCompanyName('Acme Enterprise Corp');
-      setInviteToken('INVITE-DOCVERIFY-8891');
+      setEmail('newhire@yourcompany.com');
+      setPassword('password123');
+      setCompanyId('COMP-NEW');
+      setCompanyName('Your Company Name');
+      setInviteToken('');
     } else {
-      setEmail('admin@acme-corp.com');
-      setPassword('SecurePass123!');
+      setEmail('consultancy@technova.com');
+      setPassword('password123');
     }
   };
 

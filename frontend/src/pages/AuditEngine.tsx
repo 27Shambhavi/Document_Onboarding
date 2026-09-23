@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../App';
 import { api, type AuditReport, type OCRExtractionResult } from '../api/client';
 import {
-  ShieldCheck,
   Upload,
   Zap,
   CheckCircle2,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { CandidateProfileCard } from '../components/audit/CandidateProfileCard';
 import { GuidelineResults } from '../components/audit/GuidelineResults';
+import { PageHeaderActions } from '../components/PageHeaderActions';
 
 export const AuditEngine: React.FC = () => {
   const { isDark } = useTheme();
@@ -448,41 +449,27 @@ export const AuditEngine: React.FC = () => {
   const overallCleared = unclearedRulesCount === 0;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 pb-32">
-      
-      {/* HEADER BAR */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/10 pb-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-indigo-500" />
-            Audit & Execution Engine
-          </h2>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Upload candidate documents to trigger AI OCR extraction, blueprint compliance, and guideline audits.
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {hasResults && (
-            <button
-              onClick={handleClearAuditState}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                isDark
-                  ? 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
-                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-              }`}
-              title="Clear persisted audit results and start a fresh session"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-              <span>Reset Results</span>
-            </button>
-          )}
-
-          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            Active Mode: <strong className="text-indigo-400 uppercase">{auditMode}</strong>
-          </span>
-        </div>
-      </div>
+    <div className="space-y-8 pb-32">
+      {/* TOP HEADER ACTIONS */}
+      <PageHeaderActions>
+        <span className="hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          Mode: <strong className="ml-1 text-indigo-400 uppercase">{auditMode}</strong>
+        </span>
+        {hasResults && (
+          <button
+            onClick={handleClearAuditState}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              isDark
+                ? 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-sm'
+            }`}
+            title="Clear persisted audit results and start a fresh session"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            <span>Reset Results</span>
+          </button>
+        )}
+      </PageHeaderActions>
 
       {/* ERROR ALERT BANNER */}
       {errorMessage && (
@@ -513,9 +500,12 @@ export const AuditEngine: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             
             {/* MODE 1: Stage 1 */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={() => { setAuditMode('stage1'); setErrorMessage(null); }}
-              className={`p-4 rounded-xl border text-left transition-all relative ${
+              className={`p-4 rounded-xl border text-left transition-colors relative cursor-pointer transform-gpu will-change-transform ${
                 auditMode === 'stage1'
                   ? isDark
                     ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
@@ -531,14 +521,17 @@ export const AuditEngine: React.FC = () => {
                 </span>
                 <FileSearch className="w-4 h-4 text-indigo-400" />
               </div>
-              <h4 className="text-sm font-bold">OCR Extraction Only</h4>
+              <h4 className="text-sm font-bold">Data Extraction Only</h4>
               <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Extracts fields from document &rarr; Displays Candidate Profile Card.
+                Extracts text and key fields from documents to populate candidate profiles.
               </p>
-            </button>
+            </motion.button>
 
             {/* MODE 2: Stage 2 */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={() => {
                 setAuditMode('stage2');
                 setErrorMessage(null);
@@ -548,7 +541,7 @@ export const AuditEngine: React.FC = () => {
                   setStage2JsonInput(JSON.stringify(SAMPLE_OCR_PAYLOAD, null, 2));
                 }
               }}
-              className={`p-4 rounded-xl border text-left transition-all relative ${
+              className={`p-4 rounded-xl border text-left transition-colors relative cursor-pointer transform-gpu will-change-transform ${
                 auditMode === 'stage2'
                   ? isDark
                     ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
@@ -568,12 +561,15 @@ export const AuditEngine: React.FC = () => {
               <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 {currentOcrPayload ? '✨ Injects Stage 1 OCR' : 'Passes active OCR payload'} &rarr; Evaluates guidelines.
               </p>
-            </button>
+            </motion.button>
 
             {/* MODE 3: 1-Click Complete Audit */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={() => { setAuditMode('oneclick'); setErrorMessage(null); }}
-              className={`p-4 rounded-xl border text-left transition-all relative ${
+              className={`p-4 rounded-xl border text-left transition-colors relative cursor-pointer transform-gpu will-change-transform ${
                 auditMode === 'oneclick'
                   ? isDark
                     ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-500/10 ring-2 ring-indigo-500/30'
@@ -589,11 +585,11 @@ export const AuditEngine: React.FC = () => {
                 </span>
                 <Zap className="w-4 h-4 text-amber-400 fill-current" />
               </div>
-              <h4 className="text-sm font-bold">End-to-End Pipeline</h4>
+              <h4 className="text-sm font-bold">Complete Screening</h4>
               <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Extracts OCR and evaluates compliance rules in one single click.
+                Extracts data and automatically verifies all compliance and policy guidelines in a single click.
               </p>
-            </button>
+            </motion.button>
 
           </div>
         </div>
@@ -727,36 +723,45 @@ export const AuditEngine: React.FC = () => {
         {/* 3. EXECUTE ACTION BUTTONS */}
         <div className="mt-6 flex justify-end">
           {auditMode === 'stage1' && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={handleRunStage1}
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer transform-gpu will-change-transform"
             >
               <FileSearch className="w-4 h-4" />
-              <span>Execute Stage 1 OCR Extraction</span>
-            </button>
+              <span>Execute Stage 1 Data Extraction</span>
+            </motion.button>
           )}
 
           {auditMode === 'stage2' && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={handleRunStage2}
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer transform-gpu will-change-transform"
             >
               <Sliders className="w-4 h-4" />
               <span>Execute Stage 2 Guideline Verification</span>
-            </button>
+            </motion.button>
           )}
 
           {auditMode === 'oneclick' && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01, y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               onClick={handleRunOneClickAudit}
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-extrabold text-xs shadow-xl shadow-indigo-500/25 transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-extrabold text-xs shadow-xl shadow-indigo-500/25 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer transform-gpu will-change-transform"
             >
               <Zap className="w-4 h-4 fill-current text-amber-300" />
               <span>Launch 1-Click Complete Candidate Audit</span>
-            </button>
+            </motion.button>
           )}
         </div>
 

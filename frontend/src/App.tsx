@@ -15,6 +15,7 @@ import { ProjectsMasterList } from './pages/ProjectsMasterList';
 import { ProjectDetailDashboard } from './pages/ProjectDetailDashboard';
 import { CandidateProfilePage } from './pages/CandidateProfilePage';
 import { ChatbotHistory } from './pages/ChatbotHistory';
+import { ScanDetailPage } from './pages/ScanDetailPage';
 
 import { api, type UserSession } from './api/client';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
@@ -242,6 +243,7 @@ export const App: React.FC = () => {
                 <Route path="/hr/projects" element={<ProjectsMasterList />} />
                 <Route path="/hr/projects/:projectId" element={<ProjectDetailDashboard />} />
                 <Route path="/hr/projects/:projectId/candidate/:candidateId" element={<CandidateProfilePage />} />
+                <Route path="/scan/:scanId" element={<ScanDetailPage />} />
                 <Route path="/hr-ranking" element={<Navigate to="/hr/projects" replace />} />
                 <Route path="/rag" element={<ChatbotHistory />} />
                 <Route path="/chatbot" element={<ChatbotHistory />} />

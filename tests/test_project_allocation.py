@@ -193,3 +193,91 @@ def test_full_project_allocation_lifecycle():
     # Verify 404 when querying deleted project
     res_get_deleted = client.get(f"/hr/projects/{project_id}")
     assert res_get_deleted.status_code == 404
+
+
+def test_candidate_profile_state_synchronization():
+    """
+    Test dynamic status resolution on candidate profile endpoint:
+    - Status is PENDING initially (not hardcoded to 'PENDING ALLOCATION')
+    - Flips dynamically to ALLOCATED upon allocation with timestamp
+    - Resolves via CandidateAllocation table and CandidateMatch table
+    - Flips back to PENDING upon deallocation / release
+    - Flips to REJECTED upon rejection
+    """
+    # 1. Create a project
+    res_proj = client.post(
+        "/hr/projects",
+        json={
+            "project_name": "State Sync Test Project",
+            "project_code": "PRJ-SYNC-01",
+            "required_skills": ["Python", "FastAPI"],
+            "team_capacity": 2,
+        },
+    )
+    assert res_proj.status_code == 200
+    project_id = res_proj.json()["id"]
+
+    # 2. Rank candidates to generate candidate matches
+    res_rank = client.post(f"/hr/projects/{project_id}/rank-candidates")
+    assert res_rank.status_code == 200
+    candidates = res_rank.json()["ranked_candidates"]
+    elena = next(c for c in candidates if "Elena" in c["candidate_name"])
+    elena_id = elena["candidate_id"]
+
+    # 3. GET Candidate Profile when PENDING
+    res_prof_pending = client.get(f"/hr/projects/{project_id}/candidates/{elena_id}")
+    assert res_prof_pending.status_code == 200
+    p_data = res_prof_pending.json()
+    assert p_data["status"] == "PENDING"
+    assert p_data["allocation_status"] == "PENDING"
+    assert p_data["candidate_status"] == "PENDING"
+    assert p_data["allocated_at"] is None
+    assert "Elena" in p_data["candidate_name"]
+
+    # 4. Allocate Candidate (Approve)
+    res_alloc = client.post(
+        f"/hr/projects/{project_id}/candidates/{elena_id}/status",
+        json={"status": "ALLOCATED", "notes": "Approved for project"},
+    )
+    assert res_alloc.status_code == 200
+    assert res_alloc.json()["new_status"] == "ALLOCATED"
+    assert res_alloc.json()["allocated_at"] is not None
+
+    # 5. GET Candidate Profile when ALLOCATED
+    res_prof_alloc = client.get(f"/hr/projects/{project_id}/candidates/{elena_id}")
+    assert res_prof_alloc.status_code == 200
+    p_alloc = res_prof_alloc.json()
+    assert p_alloc["status"] == "ALLOCATED"
+    assert p_alloc["allocation_status"] == "ALLOCATED"
+    assert p_alloc["candidate_status"] == "ALLOCATED"
+    assert p_alloc["allocated_at"] is not None
+
+    # 6. Deallocate Candidate (Release back to PENDING)
+    res_release = client.post(
+        f"/hr/projects/{project_id}/candidates/{elena_id}/status",
+        json={"status": "PENDING", "notes": "Released from project"},
+    )
+    assert res_release.status_code == 200
+    assert res_release.json()["new_status"] == "PENDING"
+
+    # 7. GET Candidate Profile when released back to PENDING
+    res_prof_released = client.get(f"/hr/projects/{project_id}/candidates/{elena_id}")
+    assert res_prof_released.status_code == 200
+    p_rel = res_prof_released.json()
+    assert p_rel["status"] == "PENDING"
+    assert p_rel["allocation_status"] == "PENDING"
+    assert p_rel["allocated_at"] is None
+
+    # 8. Reject Candidate
+    res_rej = client.post(
+        f"/hr/projects/{project_id}/candidates/{elena_id}/status",
+        json={"status": "REJECTED", "notes": "Passed for now"},
+    )
+    assert res_rej.status_code == 200
+
+    # 9. GET Candidate Profile when REJECTED
+    res_prof_rej = client.get(f"/hr/projects/{project_id}/candidates/{elena_id}")
+    assert res_prof_rej.status_code == 200
+    p_rej = res_prof_rej.json()
+    assert p_rej["status"] == "REJECTED"
+    assert p_rej["allocation_status"] == "REJECTED"

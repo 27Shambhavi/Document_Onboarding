@@ -46,5 +46,17 @@
     "company_name": "Company knock",
     "is_signature_addon_enabled": false,
     "created_at": "2026-09-11T11:26:39.683243+00:00"
+  },
+  "COMP-88490": {
+    "company_id": "COMP-88490",
+    "company_name": "Company COMP-88490",
+    "is_signature_addon_enabled": false,
+    "created_at": "2026-09-23T10:29:11.512015+00:00"
+  },
+  "estral423": {
+    "company_id": "estral423",
+    "company_name": "Company estral423",
+    "is_signature_addon_enabled": false,
+    "created_at": "2026-09-23T12:58:21.183768+00:00"
   }
 }

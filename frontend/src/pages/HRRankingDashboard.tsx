@@ -24,6 +24,7 @@ import {
 } from '../components/hr/CandidateRankingTable';
 import type { RankedCandidateItem } from '../components/hr/CandidateRankingTable';
 import { CandidateDetailDrawer } from '../components/hr/CandidateDetailDrawer';
+import { PageHeaderActions } from '../components/PageHeaderActions';
 
 export const HRRankingDashboard: React.FC = () => {
   // 1. Projects State (Hydrated from sessionStorage)
@@ -508,60 +509,45 @@ export const HRRankingDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Top Banner & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-              <FolderKanban className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                AI Project Allotment Engine
-              </h1>
-              <p className="text-slate-500 text-xs mt-0.5">
-                Allocate vetted candidates and engineering talent to active enterprise projects with Explainable AI matching.
-              </p>
-            </div>
+      {/* TOP HEADER ACTIONS */}
+      <PageHeaderActions>
+        <button
+          onClick={() => setShowProjectModal(true)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New Project Setup / Add Project</span>
+        </button>
+      </PageHeaderActions>
+
+      {/* PROJECT SELECTOR & QUICK ACTIONS */}
+      {projects.length > 0 && (
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 flex-wrap gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Spec:</span>
+            <select
+              value={selectedProjectId || ''}
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                setSelectedProjectId(id);
+                fetchProjectDetail(id);
+              }}
+              disabled={isRanking}
+              className="pl-3 pr-8 py-1.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer disabled:opacity-50 shadow-sm"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.project_name} ({p.project_code || `#${p.id}`})
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          {projects.length > 0 && (
-            <div className="relative">
-              <select
-                value={selectedProjectId || ''}
-                onChange={(e) => {
-                  const id = Number(e.target.value);
-                  setSelectedProjectId(id);
-                  fetchProjectDetail(id);
-                }}
-                disabled={isRanking}
-                className="pl-3 pr-8 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer disabled:opacity-50 shadow-sm"
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.project_name} ({p.project_code || `#${p.id}`})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <button
-            onClick={() => setShowProjectModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Project Setup / Add Project</span>
-          </button>
 
           {selectedProjectId && (
             <button
               onClick={() => runCandidateRanking(selectedProjectId)}
               disabled={isRanking || selectedScanIds.length === 0}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 shadow-sm"
               title="Rerun Project Compatibility Matching Engine"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRanking ? 'animate-spin text-indigo-500' : ''}`} />
@@ -569,7 +555,7 @@ export const HRRankingDashboard: React.FC = () => {
             </button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Notifications */}
       {errorMessage && (
