@@ -196,6 +196,72 @@ export interface DocumentScan {
 }
 
 
+export interface Project {
+  id: number;
+  company_id: string;
+  project_name: string;
+  project_code: string;
+  raw_project_spec: string;
+  required_skills: string[];
+  experience_requirements?: string;
+  education_requirements?: string | string[];
+  team_capacity: number;
+  allocated_count: number;
+  extracted_requirements: Record<string, any>;
+  created_at: string;
+  updated_at?: string;
+  // Legacy aliases
+  job_title?: string;
+  raw_jd_text?: string;
+}
+
+
+export interface CandidateAllocation {
+  id: number;
+  candidate_id?: string | number;
+  candidate_name: string;
+  document_filename?: string;
+  candidate_email?: string;
+  match_score: number;
+  status: 'ALLOCATED' | 'REJECTED' | 'ON_HOLD' | 'PENDING';
+  allocated_at?: string;
+  notes?: string;
+}
+
+
+export interface RankedCandidate {
+  candidate_id: string | number;
+  candidate_name: string;
+  candidate_filename: string;
+  candidate_email: string;
+  score: number;
+  rank: number;
+  match_status: string;
+  status: 'ALLOCATED' | 'REJECTED' | 'ON_HOLD' | 'PENDING';
+  project_id?: number;
+  allocated_at?: string | null;
+  score_breakdown: {
+    skills: number;
+    experience: number;
+    education: number;
+    certifications: number;
+  };
+  matched_requirements: Array<{
+    category: string;
+    requirement: string;
+    evidence: string;
+  }>;
+  missing_requirements: Array<{
+    category: string;
+    requirement: string;
+    reason: string;
+  }>;
+  recommendation: string;
+  extracted_skills: string[];
+  uploaded_at?: string;
+}
+
+
 // ==========================================
 // REAL BACKEND API IMPLEMENTATION
 // NO MOCKS
@@ -766,8 +832,134 @@ export const api = {
 
 
   // ============================================================
-  // 8. AI CANDIDATE RANKING & JD MATCH
-  // EXPLAINABLE AI
+  // 8. ENTERPRISE PROJECT ALLOTMENT & CANDIDATE MATCHING
+  // ============================================================
+
+  createProject: async (
+    payload:
+      | FormData
+      | {
+          project_name: string;
+          project_code?: string;
+          required_skills?: string[];
+          experience_requirements?: string;
+          education_requirements?: string;
+          team_capacity?: number;
+          raw_project_spec?: string;
+          raw_text?: string;
+          job_title?: string;
+        }
+  ): Promise<Project> => {
+    let headers: Record<string, string> = {};
+    if (payload instanceof FormData) {
+      headers['Content-Type'] = 'multipart/form-data';
+    }
+
+    const res = await apiClient.post('/hr/projects', payload, { headers });
+    return res.data;
+  },
+
+  getProjects: async (): Promise<{
+    status: string;
+    total: number;
+    projects: Project[];
+    job_descriptions: Project[];
+  }> => {
+    const res = await apiClient.get('/hr/projects');
+    return res.data;
+  },
+
+  getProject: async (projectId: number): Promise<Project> => {
+    const res = await apiClient.get(`/hr/projects/${projectId}`);
+    return res.data;
+  },
+
+  rankCandidatesForProject: async (
+    projectId: number,
+    scanIds?: number[]
+  ): Promise<{
+    status: string;
+    project: {
+      id: number;
+      project_name: string;
+      project_code: string;
+      team_capacity: number;
+      allocated_count: number;
+      extracted_requirements: Record<string, any>;
+    };
+    kpis: {
+      total_candidates_analyzed: number;
+      top_match_percentage: number;
+      average_match_percentage: number;
+      strong_matches_count: number;
+      allocated_count: number;
+      team_capacity: number;
+    };
+    ranked_candidates: RankedCandidate[];
+  }> => {
+    const payload = scanIds && scanIds.length > 0 ? { scan_ids: scanIds } : undefined;
+    const res = await apiClient.post(`/hr/projects/${projectId}/rank-candidates`, payload);
+    return res.data;
+  },
+
+  updateCandidateAllocationStatus: async (
+    projectId: number,
+    candidateId: string | number,
+    status: 'ALLOCATED' | 'REJECTED' | 'ON_HOLD' | 'PENDING',
+    notes?: string
+  ): Promise<{
+    status: string;
+    candidate_id: number;
+    candidate_name: string;
+    new_status: string;
+    allocated_at?: string;
+    project_id: number;
+    allocated_count: number;
+    team_capacity: number;
+    message: string;
+  }> => {
+    const res = await apiClient.post(`/hr/projects/${projectId}/candidates/${candidateId}/status`, {
+      status,
+      notes,
+    });
+    return res.data;
+  },
+
+  getProjectAllocatedResources: async (
+    projectId: number
+  ): Promise<{
+    status: string;
+    project_id: number;
+    team_capacity: number;
+    allocated_count: number;
+    allocated_resources: CandidateAllocation[];
+  }> => {
+    const res = await apiClient.get(`/hr/projects/${projectId}/allocated-resources`);
+    return res.data;
+  },
+
+  deleteProject: async (
+    projectId: number
+  ): Promise<{
+    status: string;
+    message: string;
+    deleted_project_id: number;
+    deallocated_candidates_count: number;
+  }> => {
+    const res = await apiClient.delete(`/hr/projects/${projectId}`);
+    return res.data;
+  },
+
+  getCandidateProjectProfile: async (
+    projectId: number,
+    candidateId: string | number
+  ): Promise<any> => {
+    const res = await apiClient.get(`/hr/projects/${projectId}/candidates/${candidateId}`);
+    return res.data;
+  },
+
+  // ============================================================
+  // BACKWARD-COMPATIBLE LEGACY JD ALIASES
   // ============================================================
 
   analyzeJobDescription: async (

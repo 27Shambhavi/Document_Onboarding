@@ -136,6 +136,20 @@ class Company(Base):
         order_by="JobDescription.created_at.desc()",
     )
 
+    projects: Mapped[List["Project"]] = relationship(
+        "Project",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="Project.created_at.desc()",
+    )
+
+    allocations: Mapped[List["CandidateAllocation"]] = relationship(
+        "CandidateAllocation",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="CandidateAllocation.allocated_at.desc()",
+    )
+
     chat_sessions: Mapped[List["ChatSession"]] = relationship(
         "ChatSession",
         back_populates="company",
@@ -290,6 +304,17 @@ class JobDescription(Base):
         nullable=False,
     )
 
+    project_code: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    team_capacity: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False,
+    )
+
     raw_jd_text: Mapped[str] = mapped_column(
         String,
         nullable=False,
@@ -316,6 +341,106 @@ class JobDescription(Base):
         back_populates="job_description",
         cascade="all, delete-orphan",
         order_by="CandidateMatch.created_at.desc()",
+    )
+
+
+# =========================================================
+# PROJECT SPECIFICATION & CANDIDATE ALLOCATION
+# =========================================================
+
+class Project(Base):
+    """
+    Stores enterprise Project Specifications and requirements
+    (skills, experience, education, team capacity) for candidate allotment and tracking.
+    """
+    __tablename__ = "projects"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("companies.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    project_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    project_code: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+
+    raw_project_spec: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+    )
+
+    required_skills: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    experience_requirements: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    education_requirements: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    team_capacity: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False,
+    )
+
+    extracted_requirements: Mapped[Any] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    company: Mapped["Company"] = relationship(
+        "Company",
+        back_populates="projects",
+    )
+
+    candidate_matches: Mapped[List["CandidateMatch"]] = relationship(
+        "CandidateMatch",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="CandidateMatch.created_at.desc()",
+    )
+
+    allocations: Mapped[List["CandidateAllocation"]] = relationship(
+        "CandidateAllocation",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="CandidateAllocation.allocated_at.desc()",
     )
 
 
@@ -470,6 +595,13 @@ class CandidateMatch(Base):
         index=True,
     )
 
+    project_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     candidate_name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -507,6 +639,18 @@ class CandidateMatch(Base):
         nullable=True,
     )
 
+    status: Mapped[str] = mapped_column(
+        String(50),
+        default="PENDING",
+        nullable=False,
+        index=True,
+    )
+
+    allocated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -522,4 +666,97 @@ class CandidateMatch(Base):
     job_description: Mapped[Optional["JobDescription"]] = relationship(
         "JobDescription",
         back_populates="candidate_matches",
+    )
+
+    project: Mapped[Optional["Project"]] = relationship(
+        "Project",
+        back_populates="candidate_matches",
+    )
+
+
+# =========================================================
+# CANDIDATE ALLOCATION (Resource Allotment to Projects)
+# =========================================================
+
+class CandidateAllocation(Base):
+    """
+    Persists explicit candidate project assignments, status
+    (ALLOCATED, REJECTED, ON_HOLD), and allocation timestamps.
+    """
+    __tablename__ = "candidate_allocations"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    company_id: Mapped[str] = mapped_column(
+        String(100),
+        ForeignKey("companies.company_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    candidate_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        index=True,
+    )
+
+    candidate_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    document_filename: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    candidate_email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    match_score: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(50),
+        default="ALLOCATED",
+        nullable=False,
+        index=True,
+    )
+
+    notes: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    allocated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    company: Mapped["Company"] = relationship(
+        "Company",
+        back_populates="allocations",
+    )
+
+    project: Mapped["Project"] = relationship(
+        "Project",
+        back_populates="allocations",
     )

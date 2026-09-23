@@ -38,11 +38,11 @@ const navigationItems = [
     description: 'Candidate OCR extraction & Guideline evaluation pipeline',
   },
   {
-    name: 'AI Candidate Match',
-    path: '/hr-ranking',
+    name: 'AI Project Allotment Engine',
+    path: '/hr/projects',
     icon: UserCheck,
     badge: 'XAI',
-    description: 'Explainable AI resume ranking & JD requirement matching',
+    description: 'Enterprise project resource allocation & Explainable AI candidate matching',
   },
   {
     name: 'Assistant',
@@ -68,7 +68,10 @@ export const DashboardLayout: React.FC = () => {
 
   const activeNavItem =
     navigationItems.find(
-      (item) => item.path === location.pathname || (item.path === '/rag' && location.pathname === '/chatbot')
+      (item) =>
+        item.path === location.pathname ||
+        (item.path === '/hr/projects' && (location.pathname.startsWith('/hr/projects') || location.pathname === '/hr-ranking')) ||
+        (item.path === '/rag' && location.pathname === '/chatbot')
     ) || navigationItems[0];
 
   return (
@@ -133,14 +136,21 @@ export const DashboardLayout: React.FC = () => {
 
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            const isItemActive =
+              item.path === '/hr/projects'
+                ? location.pathname.startsWith('/hr/projects') || location.pathname === '/hr-ranking'
+                : item.path === '/rag'
+                ? location.pathname === '/rag' || location.pathname === '/chatbot'
+                : location.pathname === item.path;
+
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={({ isActive }) =>
+                className={() =>
                   `flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative ${
-                    isActive
+                    isItemActive
                       ? isDark
                         ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-sm shadow-indigo-500/10'
                         : 'bg-indigo-50 text-indigo-600 border border-indigo-200/80 shadow-sm'
@@ -150,9 +160,9 @@ export const DashboardLayout: React.FC = () => {
                   }`
                 }
               >
-                {({ isActive }) => (
+                {() => (
                   <>
-                    <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-300'}`} />
+                    <Icon className={`w-5 h-5 flex-shrink-0 ${isItemActive ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-300'}`} />
                     {!collapsed && <span className="ml-3 truncate">{item.name}</span>}
                     {!collapsed && item.badge && (
                       <span className="ml-auto px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">

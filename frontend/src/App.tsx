@@ -11,7 +11,9 @@ import AuditEngine from './pages/AuditEngine';
 import Billing from './pages/Billing';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
-import { HRRankingDashboard } from './pages/HRRankingDashboard';
+import { ProjectsMasterList } from './pages/ProjectsMasterList';
+import { ProjectDetailDashboard } from './pages/ProjectDetailDashboard';
+import { CandidateProfilePage } from './pages/CandidateProfilePage';
 import { ChatbotHistory } from './pages/ChatbotHistory';
 
 import { api, type UserSession } from './api/client';
@@ -237,7 +239,10 @@ export const App: React.FC = () => {
                 <Route path="/dashboard" element={<HomeDashboard />} />
                 <Route path="/config" element={<ConfigHub />} />
                 <Route path="/audit" element={<AuditEngine />} />
-                <Route path="/hr-ranking" element={<HRRankingDashboard />} />
+                <Route path="/hr/projects" element={<ProjectsMasterList />} />
+                <Route path="/hr/projects/:projectId" element={<ProjectDetailDashboard />} />
+                <Route path="/hr/projects/:projectId/candidate/:candidateId" element={<CandidateProfilePage />} />
+                <Route path="/hr-ranking" element={<Navigate to="/hr/projects" replace />} />
                 <Route path="/rag" element={<ChatbotHistory />} />
                 <Route path="/chatbot" element={<ChatbotHistory />} />
                 <Route path="/chatbot-history" element={<Navigate to="/rag" replace />} />

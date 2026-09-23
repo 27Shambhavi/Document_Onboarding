@@ -8,6 +8,9 @@ import {
   Calendar,
   Layers,
   CheckCircle2,
+  XCircle,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 import { MatchScore } from './MatchScore';
 import { RequirementMatch } from './RequirementMatch';
@@ -21,6 +24,9 @@ interface CandidateDetailDrawerProps {
     score: number;
     rank: number;
     match_status: string;
+    status?: 'ALLOCATED' | 'REJECTED' | 'ON_HOLD' | 'PENDING';
+    project_id?: number;
+    allocated_at?: string | null;
     score_breakdown: {
       skills: number;
       experience: number;
@@ -42,15 +48,21 @@ interface CandidateDetailDrawerProps {
     uploaded_at?: string;
   } | null;
   targetJobTitle?: string;
+  targetProjectName?: string;
   isOpen: boolean;
   onClose: () => void;
+  onAllocate?: (candidate: any) => void;
+  onReject?: (candidate: any) => void;
 }
 
 export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
   candidate,
-  targetJobTitle = 'Target Role',
+  targetJobTitle,
+  targetProjectName,
   isOpen,
   onClose,
+  onAllocate,
+  onReject,
 }) => {
   // Close on ESC key
   useEffect(() => {
@@ -68,6 +80,10 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen || !candidate) return null;
+
+  const displayTarget = targetProjectName || targetJobTitle || 'Target Enterprise Project';
+  const isAllocated = candidate.status === 'ALLOCATED';
+  const isRejected = candidate.status === 'REJECTED';
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return 'bg-amber-100 text-amber-800 border-amber-300';
@@ -99,9 +115,21 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <span>{candidate.candidate_name}</span>
+                {isAllocated && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Allocated
+                  </span>
+                )}
+                {isRejected && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                    <XCircle className="w-3 h-3 text-rose-600" />
+                    Rejected
+                  </span>
+                )}
               </h2>
               <p className="text-xs text-slate-500 flex items-center gap-2">
-                <span>Target: {targetJobTitle}</span>
+                <span>Target Project: {displayTarget}</span>
               </p>
             </div>
           </div>
@@ -160,7 +188,7 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
           {/* 3. Multi-Dimension Score Breakdown */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-              Compatibility Vectors
+              Project Compatibility Vectors
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm">
@@ -224,9 +252,41 @@ export const CandidateDetailDrawer: React.FC<CandidateDetailDrawerProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-          <span>Candidate Scan ID: {String(candidate.candidate_id)}</span>
+        {/* Footer with Action Controls */}
+        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {!isAllocated ? (
+              <button
+                type="button"
+                onClick={() => onAllocate && onAllocate(candidate)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Approve / Allocate to Project</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onReject && onReject(candidate)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <UserX className="w-4 h-4" />
+                <span>Release Resource</span>
+              </button>
+            )}
+
+            {!isAllocated && !isRejected && (
+              <button
+                type="button"
+                onClick={() => onReject && onReject(candidate)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Reject / Pass</span>
+              </button>
+            )}
+          </div>
+
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer"

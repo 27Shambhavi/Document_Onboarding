@@ -391,6 +391,30 @@ Return STRICT JSON ONLY matching this schema:
         jd_skills = [s.lower() for s in jd_requirements.get("skills", [])]
         cand_skills = [s.lower() for s in cand_summary.get("skills", [])]
         raw_text_lower = cand_summary.get("raw_text_summary", "").lower()
+        has_experience = bool(cand_summary.get("experience"))
+        has_education = bool(cand_summary.get("education"))
+
+        # Non-resume or zero-data check:
+        # If no skills, no experience, and no education are found, this is an irrelevant non-resume document (e.g. government ID)
+        if not cand_skills and not has_experience and not has_education:
+            return {
+                "score": 0,
+                "score_breakdown": {
+                    "skills": 0,
+                    "experience": 0,
+                    "education": 0,
+                    "certifications": 0,
+                },
+                "matched_requirements": [],
+                "missing_requirements": [
+                    {
+                        "category": "All",
+                        "requirement": "Professional Profile",
+                        "reason": "Document lacks verifiable resume entities (skills, experience, education).",
+                    }
+                ],
+                "recommendation": "Document does not contain professional resume entities. Evaluated as non-matching.",
+            }
 
         matched = []
         missing = []
@@ -414,12 +438,12 @@ Return STRICT JSON ONLY matching this schema:
         matched_count = len(matched)
         skills_ratio = matched_count / total_reqs
 
-        skills_score = int(min(100, max(20, skills_ratio * 100)))
-        exp_score = 75 if cand_summary.get("experience") else 60
-        edu_score = 85 if cand_summary.get("education") else 70
-        certs_score = 65
+        skills_score = int(min(100, skills_ratio * 100))
+        exp_score = 75 if has_experience else 0
+        edu_score = 80 if has_education else 0
+        certs_score = 50 if cand_skills else 0
 
-        composite = int(0.5 * skills_score + 0.25 * exp_score + 0.15 * edu_score + 0.10 * certs_score)
+        composite = int(0.55 * skills_score + 0.25 * exp_score + 0.15 * edu_score + 0.05 * certs_score)
 
         return {
             "score": composite,
@@ -563,13 +587,64 @@ Return STRICT JSON ONLY matching this schema:
             "strong_matches_count": strong_count,
         }
 
-        # Persist candidate matches with tenant isolation
+        # Persist candidate matches with tenant isolation while preserving explicit allocation statuses
         try:
-            db.query(CandidateMatch).filter(
-                CandidateMatch.company_id == company_id,
-                CandidateMatch.job_description_id == jd.id,
-            ).delete(synchronize_session=False)
+            from sqlalchemy import or_
+            from app.db.models import CandidateAllocation
 
+            target_jd_id = getattr(jd, "id", None)
+            is_project_entity = hasattr(jd, "project_name")
+            target_project_id = target_jd_id if is_project_entity else getattr(jd, "project_id", None)
+
+            # Retrieve any existing statuses for this project/JD so re-ranking never clears ALLOCATED or REJECTED state
+            existing_query = db.query(CandidateMatch).filter(CandidateMatch.company_id == company_id)
+            if target_project_id:
+                existing_query = existing_query.filter(
+                    or_(CandidateMatch.project_id == target_project_id, CandidateMatch.job_description_id == target_jd_id)
+                )
+            else:
+                existing_query = existing_query.filter(CandidateMatch.job_description_id == target_jd_id)
+
+            existing_matches = existing_query.all()
+            status_map: Dict[str, tuple] = {}
+            for m in existing_matches:
+                if m.status and m.status != "PENDING":
+                    status_map[m.candidate_name.strip().lower()] = (m.status, m.allocated_at)
+
+            # Also check candidate_allocations table
+            if target_project_id:
+                existing_allocs = db.query(CandidateAllocation).filter(
+                    CandidateAllocation.company_id == company_id,
+                    CandidateAllocation.project_id == target_project_id,
+                ).all()
+                for a in existing_allocs:
+                    status_map[a.candidate_name.strip().lower()] = (a.status, a.allocated_at)
+
+            # Assign statuses to evaluated candidates list
+            for cand in evaluated_candidates:
+                cand_name_key = (cand.get("candidate_name") or "").strip().lower()
+                if cand_name_key in status_map:
+                    cand_status, cand_alloc_time = status_map[cand_name_key]
+                    cand["status"] = cand_status
+                    cand["allocated_at"] = cand_alloc_time.isoformat() if cand_alloc_time else None
+                else:
+                    cand["status"] = cand.get("status") or "PENDING"
+                    cand["allocated_at"] = None
+                cand["project_id"] = target_project_id
+
+            # Remove prior match snapshot rows for this target
+            if target_project_id:
+                db.query(CandidateMatch).filter(
+                    CandidateMatch.company_id == company_id,
+                    or_(CandidateMatch.project_id == target_project_id, CandidateMatch.job_description_id == target_jd_id),
+                ).delete(synchronize_session=False)
+            else:
+                db.query(CandidateMatch).filter(
+                    CandidateMatch.company_id == company_id,
+                    CandidateMatch.job_description_id == target_jd_id,
+                ).delete(synchronize_session=False)
+
+            # Insert updated match rows
             for cand in evaluated_candidates:
                 missing = cand.get("missing_requirements", [])
                 gaps_summary_parts = [
@@ -579,9 +654,18 @@ Return STRICT JSON ONLY matching this schema:
                 ]
                 gaps_text = "; ".join(gaps_summary_parts) if gaps_summary_parts else cand.get("recommendation", "")
 
+                cand_status = cand.get("status") or "PENDING"
+                cand_allocated_at = None
+                cand_name_key = (cand.get("candidate_name") or "").strip().lower()
+                if cand_name_key in status_map and status_map[cand_name_key][1]:
+                    cand_allocated_at = status_map[cand_name_key][1]
+                elif cand_status == "ALLOCATED":
+                    cand_allocated_at = datetime.now(timezone.utc)
+
                 match_row = CandidateMatch(
                     company_id=company_id,
-                    job_description_id=jd.id,
+                    job_description_id=target_jd_id if not is_project_entity else None,
+                    project_id=target_project_id,
                     candidate_name=cand.get("candidate_name") or "Anonymous Candidate",
                     document_filename=cand.get("candidate_filename"),
                     match_score=int(cand.get("score", 0)),
@@ -589,16 +673,19 @@ Return STRICT JSON ONLY matching this schema:
                     matched_competencies=cand.get("matched_requirements", []),
                     gaps_count=len(missing),
                     gaps_summary=gaps_text,
+                    status=cand_status,
+                    allocated_at=cand_allocated_at,
                     created_at=datetime.now(timezone.utc),
                 )
                 db.add(match_row)
             db.commit()
         except Exception as exc:
             db.rollback()
-            logger.error(f"[jd_matcher] Failed to persist candidate_matches for JD {jd.id}: {exc}", exc_info=True)
+            logger.error(f"[jd_matcher] Failed to persist candidate_matches for target {getattr(jd, 'id', None)}: {exc}", exc_info=True)
 
         return evaluated_candidates, kpis
 
 
 jd_matcher = JDMatcherService()
+project_matcher = jd_matcher
 
