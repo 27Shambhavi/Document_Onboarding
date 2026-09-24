@@ -21,6 +21,7 @@ import {
   Coins,
   ShieldCheck,
   FileText,
+  ArrowLeft,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -70,9 +71,8 @@ export const AdminDashboard: React.FC = () => {
   const [pricingSaveError, setPricingSaveError] = useState<string | null>(null);
 
   // -------------------------------------------------------------
-  // DRILL-DOWN MODAL STATE (Company Usage Analytics)
+  // DRILL-DOWN STATE (Company Usage Analytics Full-Page View)
   // -------------------------------------------------------------
-  const [usageModalOpen, setUsageModalOpen] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [companyUsageData, setCompanyUsageData] = useState<any | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -165,10 +165,9 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Open Company Usage Drill-Down Modal
-  const handleOpenUsageModal = async (companyId: string) => {
+  // Open Company Usage Drill-Down Full-Page View
+  const handleOpenUsageDrillDown = async (companyId: string) => {
     setSelectedCompanyId(companyId);
-    setUsageModalOpen(true);
     setUsageLoading(true);
     setUsageError(null);
     setGeneratedCompanySigToken(null);
@@ -188,8 +187,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleCloseUsageModal = () => {
-    setUsageModalOpen(false);
+  const handleBackToRoster = () => {
     setSelectedCompanyId(null);
     setCompanyUsageData(null);
     setUsageError(null);
@@ -197,6 +195,11 @@ export const AdminDashboard: React.FC = () => {
     setCopiedCompanySigToken(false);
     setGenerateSigTokenError(null);
   };
+
+  useEffect(() => {
+    // When switching admin tabs, reset drill-down
+    setSelectedCompanyId(null);
+  }, [activeTab]);
 
   // -------------------------------------------------------------
   // TOKEN ACTIONS
@@ -292,228 +295,560 @@ export const AdminDashboard: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-300">
       
       {/* =================================================================== */}
-      {/* TAB 1: COMPANY APPROVALS & ROSTER VIEW                             */}
+      {/* TAB 1: COMPANY APPROVALS & ROSTER VIEW / USAGE DRILL-DOWN           */}
       {/* =================================================================== */}
       {activeTab === 'roster' && (
-        <div className="space-y-8 animate-in fade-in duration-200">
-          
-          {/* KPI METRICS OVERVIEW */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className={`p-5 rounded-2xl border ${
+        selectedCompanyId ? (
+          /* FULL-PAGE COMPANY USAGE DRILL-DOWN VIEW */
+          <div className="space-y-6 animate-in fade-in duration-200 w-full">
+            
+            {/* 1. TOP NAVIGATION HEADER WITH BACK BUTTON */}
+            <div className={`p-6 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
               isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
             }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Registered Companies
-                </span>
-                <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                  <Building2 className="w-5 h-5" />
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleBackToRoster}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all inline-flex items-center gap-2 cursor-pointer flex-shrink-0"
+                  title="Return to Company Approvals Roster"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Company Approvals</span>
+                </button>
+
+                <div className="border-l border-slate-300 dark:border-slate-700 pl-4 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h2 className="text-xl font-extrabold tracking-tight">
+                      Company Usage Drill-Down
+                    </h2>
+                    <span className="font-mono text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                      {selectedCompanyId}
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {companyUsageData?.company_name || 'Loading company records...'}
+                  </p>
                 </div>
               </div>
-              <div className="mt-4 flex items-baseline justify-between">
-                <span className="text-3xl font-extrabold">{totalCount}</span>
-                <span className="text-xs text-indigo-400 font-semibold">Total Accounts</span>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => selectedCompanyId && handleOpenUsageDrillDown(selectedCompanyId)}
+                  disabled={usageLoading}
+                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isDark ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                  title="Refresh usage analytics for this company"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${usageLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Usage</span>
+                </button>
               </div>
             </div>
 
-            <div className={`p-5 rounded-2xl border ${
-              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Pending Approvals
-                </span>
-                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  <Clock className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-baseline justify-between">
-                <span className={`text-3xl font-extrabold ${pendingCount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
-                  {pendingCount}
-                </span>
-                <span className="text-xs text-amber-400 font-semibold">Requires Review</span>
-              </div>
-            </div>
-
-            <div className={`p-5 rounded-2xl border ${
-              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Approved Active Accounts
-                </span>
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-baseline justify-between">
-                <span className="text-3xl font-extrabold text-emerald-400">{activeCount}</span>
-                <span className="text-xs text-emerald-400 font-semibold">Active JWT Tokens</span>
-              </div>
-            </div>
-
-            <div className={`p-5 rounded-2xl border ${
-              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Rejected Applications
-                </span>
-                <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                  <XCircle className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-baseline justify-between">
-                <span className="text-3xl font-extrabold text-rose-400">{rejectedCount}</span>
-                <span className="text-xs text-rose-400 font-semibold">Denied Access</span>
-              </div>
-            </div>
-          </div>
-
-          {/* REGISTERED COMPANIES ROSTER TABLE */}
-          <div className={`p-6 rounded-2xl border space-y-6 ${
-            isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-          }`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-bold tracking-tight">Registered Companies Roster</h3>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Approve/reject access, inspect independent scan consumption, and view usage drill-downs.
-                </p>
-              </div>
-
-              {/* STATUS FILTERS */}
-              <div className={`p-1 rounded-xl border flex space-x-1 ${
-                isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+            {/* 2. MAIN DRILL-DOWN BODY */}
+            {usageLoading ? (
+              <div className={`p-12 rounded-2xl border text-center space-y-4 ${
+                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
               }`}>
-                {(['ALL', 'ACTIVE', 'PENDING', 'REJECTED'] as const).map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      filterStatus === status
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-rose-500" />
+                <div>
+                  <h4 className="text-sm font-bold">Aggregating PostgreSQL Scan Records...</h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Fetching real-time scans, pages, and billed consumption for <span className="font-mono text-rose-400 font-semibold">{selectedCompanyId}</span>
+                  </p>
+                </div>
+              </div>
+            ) : usageError ? (
+              <div className="p-6 rounded-2xl border bg-rose-500/10 border-rose-500/20 text-rose-400 space-y-3">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <XCircle className="w-5 h-5 flex-shrink-0" />
+                  <span>Error Loading Company Usage Data</span>
+                </div>
+                <p className="text-xs">{usageError}</p>
+                <button
+                  onClick={() => selectedCompanyId && handleOpenUsageDrillDown(selectedCompanyId)}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Retry Fetch</span>
+                </button>
+              </div>
+            ) : companyUsageData ? (
+              <div className="space-y-6">
+                
+                {/* 3 KPI CARDS SPANNING FULL CONTAINER WIDTH */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <div className={`p-5 rounded-2xl border ${
+                    isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Total Scans Run
+                      </span>
+                      <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-baseline justify-between">
+                      <span className="text-3xl font-extrabold text-indigo-400">
+                        {companyUsageData.total_scans ?? 0}
+                      </span>
+                      <span className="text-xs text-indigo-400 font-semibold">Completed Audits</span>
+                    </div>
+                    <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Total document scans processed by this tenant
+                    </p>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border ${
+                    isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Total Pages Processed
+                      </span>
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-baseline justify-between">
+                      <span className="text-3xl font-extrabold text-blue-400">
+                        {companyUsageData.total_pages ?? 0}
+                      </span>
+                      <span className="text-xs text-blue-400 font-semibold">Document Pages</span>
+                    </div>
+                    <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Cumulative pages extracted across candidate files
+                    </p>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border ${
+                    isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Total Revenue (INR)
+                      </span>
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        <Coins className="w-5 h-5" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-baseline justify-between">
+                      <span className="text-3xl font-extrabold text-emerald-400">
+                        ₹{companyUsageData.total_revenue_inr?.toFixed(2) ?? '0.00'}
+                      </span>
+                      <span className="text-xs text-emerald-400 font-semibold">Billed Consumption</span>
+                    </div>
+                    <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Total usage fee calculated from page and signature pricing
+                    </p>
+                  </div>
+                </div>
+
+                {/* COMPANY STATUS BADGES & INFO BAR */}
+                <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 ${
+                  isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs px-3 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Status: {companyUsageData.company_status}
+                    </span>
+                    <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
+                      companyUsageData.signature_unlocked
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                    }`}>
+                      Signature Add-on: {companyUsageData.signature_unlocked ? 'UNLOCKED' : 'LOCKED'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span className="font-mono">Email: {companyUsageData.email}</span>
+                  </div>
+                </div>
+
+                {/* SIGNATURE ADD-ON STATUS & 1-TIME UNLOCK GENERATOR */}
+                <div className={`p-6 rounded-2xl border space-y-4 ${
+                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <Key className="w-4 h-4 text-rose-400" />
+                    <span>Signature Add-on Status &amp; Unlock Key Generator</span>
+                  </h4>
+
+                  {companyUsageData.signature_unlocked ? (
+                    <div className={`p-5 rounded-2xl border flex items-center justify-between ${
+                      isDark ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'
+                    }`}>
+                      <div className="flex items-center space-x-3.5">
+                        <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                              Neural Verification Add-on
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>Premium Unlocked</span>
+                            </span>
+                          </div>
+                          <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            Signature &amp; Stamp Verification is permanently activated for this tenant.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`p-6 rounded-2xl border space-y-4 ${
+                      isDark ? 'bg-slate-950/70 border-rose-500/30' : 'bg-rose-50/60 border-rose-200'
+                    }`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center space-x-3.5">
+                          <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                            <Lock className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">
+                                Neural Verification Add-on
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                Locked
+                              </span>
+                            </div>
+                            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              Generate a single-use, company-specific token to grant this organization access to neural signature checks.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleGenerateCompanySignatureToken}
+                          disabled={generatingCompanySigToken}
+                          className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all flex items-center space-x-2 self-start sm:self-auto disabled:opacity-50 shadow-md shadow-rose-600/30 cursor-pointer"
+                        >
+                          <Key className={`w-3.5 h-3.5 ${generatingCompanySigToken ? 'animate-spin' : ''}`} />
+                          <span>{generatingCompanySigToken ? 'Generating...' : 'Generate 1-Time Unlock Token'}</span>
+                        </button>
+                      </div>
+
+                      {generateSigTokenError && (
+                        <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center gap-2">
+                          <XCircle className="w-4 h-4 flex-shrink-0" />
+                          <span>{generateSigTokenError}</span>
+                        </div>
+                      )}
+
+                      {/* GENERATED TOKEN DISPLAY BOX */}
+                      {(generatedCompanySigToken || companyUsageData.signature_unlock_token) && (
+                        <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200 ${
+                          isDark ? 'bg-slate-900 border-amber-500/40 text-amber-300' : 'bg-white border-amber-300 text-amber-900 shadow-sm'
+                        }`}>
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">
+                              Single-Use Unlock Token (Burns after 1st use)
+                            </span>
+                            <span className="text-sm font-mono font-extrabold tracking-wider text-amber-400">
+                              {generatedCompanySigToken || companyUsageData.signature_unlock_token}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => handleCopyCompanySigToken(generatedCompanySigToken || companyUsageData.signature_unlock_token)}
+                            className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer"
+                          >
+                            {copiedCompanySigToken ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedCompanySigToken ? 'Copied!' : 'Copy Token'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* RECENT SCANS LIST */}
+                <div className={`p-6 rounded-2xl border space-y-4 ${
+                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-base font-bold tracking-tight">Recent Scans History</h4>
+                      <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Latest 10 document scan audit executions for this company
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono text-slate-400">
+                      {companyUsageData.recent_scans?.length || 0} Records
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className={`border-b text-[10px] uppercase tracking-wider ${
+                          isDark ? 'border-slate-800 bg-slate-950/40 text-slate-400' : 'border-slate-200 bg-slate-100 text-slate-600'
+                        }`}>
+                          <th className="py-3 px-4">Scan ID</th>
+                          <th className="py-3 px-4">Filename</th>
+                          <th className="py-3 px-4 text-center">Pages</th>
+                          <th className="py-3 px-4">Cost (₹)</th>
+                          <th className="py-3 px-4 text-right">Scanned Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800/40 font-medium">
+                        {companyUsageData.recent_scans?.length > 0 ? (
+                          companyUsageData.recent_scans.map((s: any) => (
+                            <tr key={s.id} className={isDark ? 'hover:bg-slate-950/40' : 'hover:bg-slate-50'}>
+                              <td className="py-3 px-4 font-mono font-bold text-rose-400">#{s.id}</td>
+                              <td className="py-3 px-4 font-semibold truncate max-w-[280px]" title={s.filename}>
+                                {s.filename}
+                              </td>
+                              <td className="py-3 px-4 text-center font-mono">{s.pages_count}</td>
+                              <td className="py-3 px-4 font-mono text-emerald-400">₹{s.cost_inr?.toFixed(2)}</td>
+                              <td className="py-3 px-4 text-right font-mono text-[11px] opacity-75">
+                                {s.created_at ? new Date(s.created_at).toLocaleString() : 'N/A'}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                              No scan history found in database for this company.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            ) : null}
+
+          </div>
+        ) : (
+          <div className="space-y-8 animate-in fade-in duration-200">
+            
+            {/* KPI METRICS OVERVIEW */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className={`p-5 rounded-2xl border ${
+                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Registered Companies
+                  </span>
+                  <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold">{totalCount}</span>
+                  <span className="text-xs text-indigo-400 font-semibold">Total Accounts</span>
+                </div>
+              </div>
+
+              <div className={`p-5 rounded-2xl border ${
+                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Pending Approvals
+                  </span>
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className={`text-3xl font-extrabold ${pendingCount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {pendingCount}
+                  </span>
+                  <span className="text-xs text-amber-400 font-semibold">Requires Review</span>
+                </div>
+              </div>
+
+              <div className={`p-5 rounded-2xl border ${
+                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Approved Active Accounts
+                  </span>
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-emerald-400">{activeCount}</span>
+                  <span className="text-xs text-emerald-400 font-semibold">Active JWT Tokens</span>
+                </div>
+              </div>
+
+              <div className={`p-5 rounded-2xl border ${
+                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Rejected Applications
+                  </span>
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                    <XCircle className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-rose-400">{rejectedCount}</span>
+                  <span className="text-xs text-rose-400 font-semibold">Denied Access</span>
+                </div>
               </div>
             </div>
 
-            {/* TABLE */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className={`border-b text-[11px] uppercase tracking-wider ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'
-                  }`}>
-                    <th className="py-3 px-4">Company ID</th>
-                    <th className="py-3 px-4">Company Name</th>
-                    <th className="py-3 px-4">Admin Email</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Onboarded Date</th>
-                    <th className="py-3 px-4 text-right">Actions & Governance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 font-medium">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                        Loading companies roster...
-                      </td>
+            {/* REGISTERED COMPANIES ROSTER TABLE */}
+            <div className={`p-6 rounded-2xl border space-y-6 ${
+              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight">Registered Companies Roster</h3>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Approve/reject access, inspect independent scan consumption, and view usage drill-downs.
+                  </p>
+                </div>
+
+                {/* STATUS FILTERS */}
+                <div className={`p-1 rounded-xl border flex space-x-1 ${
+                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+                }`}>
+                  {(['ALL', 'ACTIVE', 'PENDING', 'REJECTED'] as const).map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setFilterStatus(status)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        filterStatus === status
+                          ? 'bg-rose-600 text-white shadow-sm'
+                          : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* TABLE */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className={`border-b text-[11px] uppercase tracking-wider ${
+                      isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'
+                    }`}>
+                      <th className="py-3 px-4">Company ID</th>
+                      <th className="py-3 px-4">Company Name</th>
+                      <th className="py-3 px-4">Admin Email</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Onboarded Date</th>
+                      <th className="py-3 px-4 text-right">Actions & Governance</th>
                     </tr>
-                  ) : filteredCompanies.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        No companies found matching filter status: "{filterStatus}"
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCompanies.map((c) => (
-                      <tr key={c.company_id} className={`transition-colors ${
-                        isDark ? 'hover:bg-slate-950/60' : 'hover:bg-slate-50'
-                      }`}>
-                        <td className="py-3.5 px-4 font-mono font-bold text-rose-400">
-                          {c.company_id}
-                        </td>
-
-                        <td className="py-3.5 px-4 font-semibold text-sm">
-                          {c.company_name}
-                        </td>
-
-                        <td className="py-3.5 px-4 font-mono opacity-80">
-                          {c.email}
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase ${
-                            c.status === 'ACTIVE'
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                              : c.status === 'PENDING'
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 font-mono text-[11px] opacity-75">
-                          {new Date(c.created_at).toLocaleDateString()}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            
-                            {/* TASK 3: VIEW USAGE & ANALYTICS BUTTON */}
-                            {c.status === 'ACTIVE' && (
-                              <button
-                                onClick={() => handleOpenUsageModal(c.company_id)}
-                                className={`px-3 py-1.5 rounded-lg border font-bold text-xs transition-all flex items-center gap-1.5 ${
-                                  isDark
-                                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white'
-                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white'
-                                }`}
-                                title="View real-time scans, pages, and incurred revenue drill-down"
-                              >
-                                <BarChart2 className="w-3.5 h-3.5" />
-                                <span>Usage & Analytics</span>
-                              </button>
-                            )}
-
-                            {c.status !== 'ACTIVE' && (
-                              <button
-                                onClick={() => handleApprove(c.company_id)}
-                                disabled={actionLoadingId === c.company_id}
-                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Approve</span>
-                              </button>
-                            )}
-
-                            {c.status !== 'REJECTED' && (
-                              <button
-                                onClick={() => handleReject(c.company_id)}
-                                disabled={actionLoadingId === c.company_id}
-                                className="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 font-bold text-xs transition-all flex items-center gap-1 disabled:opacity-50"
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
-                                <span>Reject</span>
-                              </button>
-                            )}
-                          </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/40 font-medium">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
+                          Loading companies roster...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : filteredCompanies.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400">
+                          No companies found matching filter status: "{filterStatus}"
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCompanies.map((c) => (
+                        <tr key={c.company_id} className={`transition-colors ${
+                          isDark ? 'hover:bg-slate-950/60' : 'hover:bg-slate-50'
+                        }`}>
+                          <td className="py-3.5 px-4 font-mono font-bold text-rose-400">
+                            {c.company_id}
+                          </td>
+
+                          <td className="py-3.5 px-4 font-semibold text-sm">
+                            {c.company_name}
+                          </td>
+
+                          <td className="py-3.5 px-4 font-mono opacity-80">
+                            {c.email}
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase ${
+                              c.status === 'ACTIVE'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                : c.status === 'PENDING'
+                                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {c.status}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 font-mono text-[11px] opacity-75">
+                            {new Date(c.created_at).toLocaleDateString()}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              
+                              {/* VIEW USAGE & ANALYTICS DRILL-DOWN FULL-PAGE BUTTON */}
+                              {c.status === 'ACTIVE' && (
+                                <button
+                                  onClick={() => handleOpenUsageDrillDown(c.company_id)}
+                                  className={`px-3 py-1.5 rounded-lg border font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    isDark
+                                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white'
+                                      : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white shadow-sm'
+                                  }`}
+                                  title="View full-page real-time scans, pages, and incurred revenue drill-down"
+                                >
+                                  <BarChart2 className="w-3.5 h-3.5" />
+                                  <span>Usage & Analytics</span>
+                                </button>
+                              )}
+
+                              {c.status !== 'ACTIVE' && (
+                                <button
+                                  onClick={() => handleApprove(c.company_id)}
+                                  disabled={actionLoadingId === c.company_id}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Approve</span>
+                                </button>
+                              )}
+
+                              {c.status !== 'REJECTED' && (
+                                <button
+                                  onClick={() => handleReject(c.company_id)}
+                                  disabled={actionLoadingId === c.company_id}
+                                  className="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 font-bold text-xs transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>Reject</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
+        )
       )}
 
       {/* =================================================================== */}
@@ -876,278 +1211,6 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TASK 3: COMPANY USAGE ANALYTICS DRILL-DOWN MODAL                   */}
-      {/* =================================================================== */}
-      {usageModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ${
-            isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            
-            {/* MODAL HEADER */}
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${
-              isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50'
-            }`}>
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                  <BarChart2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold tracking-tight flex items-center gap-2">
-                    Company Usage Drill-Down
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                      {selectedCompanyId}
-                    </span>
-                  </h3>
-                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {companyUsageData?.company_name || 'Loading company records...'}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleCloseUsageModal}
-                className={`p-2 rounded-xl transition-all ${
-                  isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* MODAL BODY */}
-            <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              {usageLoading ? (
-                <div className="py-12 text-center text-slate-400 space-y-3">
-                  <RefreshCw className="w-8 h-8 animate-spin mx-auto text-rose-500" />
-                  <p className="text-xs font-semibold">Aggregating PostgreSQL scan records for {selectedCompanyId}...</p>
-                </div>
-              ) : usageError ? (
-                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                  {usageError}
-                </div>
-              ) : companyUsageData ? (
-                <>
-                  {/* KPI AGGREGATION CARDS */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className={`p-4 rounded-xl border ${
-                      isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Total Scans Run
-                      </span>
-                      <span className="text-2xl font-extrabold mt-1 block text-indigo-400">
-                        {companyUsageData.total_scans ?? 0}
-                      </span>
-                      <span className="text-[10px] text-slate-400">Completed Audits</span>
-                    </div>
-
-                    <div className={`p-4 rounded-xl border ${
-                      isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Total Pages Processed
-                      </span>
-                      <span className="text-2xl font-extrabold mt-1 block text-blue-400">
-                        {companyUsageData.total_pages ?? 0}
-                      </span>
-                      <span className="text-[10px] text-slate-400">Document Pages</span>
-                    </div>
-
-                    <div className={`p-4 rounded-xl border ${
-                      isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Total Revenue (INR)
-                      </span>
-                      <span className="text-2xl font-extrabold mt-1 block text-emerald-400">
-                        ₹{companyUsageData.total_revenue_inr?.toFixed(2) ?? '0.00'}
-                      </span>
-                      <span className="text-[10px] text-emerald-400 font-semibold">Billed Consumption</span>
-                    </div>
-                  </div>
-
-                  {/* COMPANY STATUS BADGES */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Status: {companyUsageData.company_status}
-                    </span>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-bold border ${
-                      companyUsageData.signature_unlocked
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                    }`}>
-                      Signature Add-on: {companyUsageData.signature_unlocked ? 'UNLOCKED' : 'LOCKED'}
-                    </span>
-                    <span className="text-xs px-2.5 py-1 rounded-full font-mono text-slate-400 border border-slate-700/50">
-                      Email: {companyUsageData.email}
-                    </span>
-                  </div>
-
-                  {/* SIGNATURE ADD-ON STATUS & 1-TIME UNLOCK GENERATOR */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Signature Add-on Status
-                    </h4>
-
-                    {companyUsageData.signature_unlocked ? (
-                      <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                        isDark ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'
-                      }`}>
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            <ShieldCheck className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                                Neural Verification Add-on
-                              </span>
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                <span>Premium Unlocked</span>
-                              </span>
-                            </div>
-                            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                              Signature & Stamp Verification is permanently activated for this tenant.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className={`p-5 rounded-xl border space-y-4 ${
-                        isDark ? 'bg-slate-950/70 border-rose-500/30' : 'bg-rose-50/60 border-rose-200'
-                      }`}>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                              <Lock className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">
-                                  Neural Verification Add-on
-                                </span>
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                                  Locked
-                                </span>
-                              </div>
-                              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                Generate a single-use, company-specific token to grant this organization access to neural signature checks.
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={handleGenerateCompanySignatureToken}
-                            disabled={generatingCompanySigToken}
-                            className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all flex items-center space-x-2 self-start sm:self-auto disabled:opacity-50 shadow-md shadow-rose-600/30"
-                          >
-                            <Key className={`w-3.5 h-3.5 ${generatingCompanySigToken ? 'animate-spin' : ''}`} />
-                            <span>{generatingCompanySigToken ? 'Generating...' : 'Generate 1-Time Unlock Token'}</span>
-                          </button>
-                        </div>
-
-                        {generateSigTokenError && (
-                          <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center gap-2">
-                            <XCircle className="w-4 h-4 flex-shrink-0" />
-                            <span>{generateSigTokenError}</span>
-                          </div>
-                        )}
-
-                        {/* GENERATED TOKEN DISPLAY BOX */}
-                        {(generatedCompanySigToken || companyUsageData.signature_unlock_token) && (
-                          <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200 ${
-                            isDark ? 'bg-slate-900 border-amber-500/40 text-amber-300' : 'bg-white border-amber-300 text-amber-900 shadow-sm'
-                          }`}>
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">
-                                Single-Use Unlock Token (Burns after 1st use)
-                              </span>
-                              <span className="text-sm font-mono font-extrabold tracking-wider text-amber-400">
-                                {generatedCompanySigToken || companyUsageData.signature_unlock_token}
-                              </span>
-                            </div>
-
-                            <button
-                              onClick={() => handleCopyCompanySigToken(generatedCompanySigToken || companyUsageData.signature_unlock_token)}
-                              className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all flex items-center space-x-1.5 shadow-sm"
-                            >
-                              {copiedCompanySigToken ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                              <span>{copiedCompanySigToken ? 'Copied!' : 'Copy Token'}</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* RECENT SCANS LIST */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Recent Scans History (Latest 10)
-                    </h4>
-
-                    <div className="overflow-x-auto rounded-xl border border-slate-800/60">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className={`border-b text-[10px] uppercase tracking-wider ${
-                            isDark ? 'border-slate-800 bg-slate-950/40 text-slate-400' : 'border-slate-200 bg-slate-100 text-slate-600'
-                          }`}>
-                            <th className="py-2.5 px-3">Scan ID</th>
-                            <th className="py-2.5 px-3">Filename</th>
-                            <th className="py-2.5 px-3 text-center">Pages</th>
-                            <th className="py-2.5 px-3">Cost (₹)</th>
-                            <th className="py-2.5 px-3 text-right">Scanned Date</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/40 font-medium">
-                          {companyUsageData.recent_scans?.length > 0 ? (
-                            companyUsageData.recent_scans.map((s: any) => (
-                              <tr key={s.id} className={isDark ? 'hover:bg-slate-950/40' : 'hover:bg-slate-50'}>
-                                <td className="py-2 px-3 font-mono font-bold text-rose-400">#{s.id}</td>
-                                <td className="py-2 px-3 font-semibold truncate max-w-[200px]" title={s.filename}>
-                                  {s.filename}
-                                </td>
-                                <td className="py-2 px-3 text-center font-mono">{s.pages_count}</td>
-                                <td className="py-2 px-3 font-mono text-emerald-400">₹{s.cost_inr?.toFixed(2)}</td>
-                                <td className="py-2 px-3 text-right font-mono text-[11px] opacity-75">
-                                  {s.created_at ? new Date(s.created_at).toLocaleString() : 'N/A'}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5} className="py-6 text-center text-slate-400 text-xs">
-                                No scan history found in database for this company.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </div>
-
-            {/* MODAL FOOTER */}
-            <div className={`px-6 py-3.5 border-t flex justify-end ${
-              isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50'
-            }`}>
-              <button
-                onClick={handleCloseUsageModal}
-                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all"
-              >
-                Close Drill-Down
-              </button>
-            </div>
-
-          </div>
         </div>
       )}
 

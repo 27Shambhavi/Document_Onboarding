@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Default to running backend port 8567 or 8000
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8567';
 
 export const apiClient = axios.create({
@@ -731,6 +731,16 @@ export const api = {
     );
 
     return res.data;
+  },
+
+  getScanDocumentUrl: (
+    scanId: number
+  ): string => {
+    const adminToken = localStorage.getItem('docverify_admin_token');
+    const clientToken = localStorage.getItem('docverify_token');
+    const token = adminToken || clientToken;
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    return `${API_BASE_URL}/company/scans/${scanId}/document${tokenParam}`;
   },
 
 

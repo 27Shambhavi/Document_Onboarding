@@ -11,7 +11,7 @@ from app.api.document_routes import router as document_router  # <-- Blueprint &
 from app.api.guideline_routes import router as guideline_router
 from app.api.hr_ranking_routes import router as hr_ranking_router
 from app.api.pipeline_routes import router as pipeline_router
-from app.api.scan_routes import router as scan_router  # <-- Scan History Router
+from app.api.scan_routes import router as scan_router, api_scan_router, static_upload_router  # <-- Scan History & Document Router
 from app.api.chatbot_routes import router as chatbot_router  # <-- RAG Chatbot Router
 
 logger = logging.getLogger("app.main")
@@ -62,8 +62,10 @@ app.include_router(pipeline_router)
 # 5. Billing & Analytics
 app.include_router(billing_router)
 
-# 6. Scan History (Task 1)
+# 6. Scan History & Document Preview Endpoints
 app.include_router(scan_router)
+app.include_router(api_scan_router)
+app.include_router(static_upload_router)
 
 # 7. RAG Chatbot (Task 2)
 app.include_router(chatbot_router)

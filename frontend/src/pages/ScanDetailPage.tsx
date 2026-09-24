@@ -273,10 +273,14 @@ export const ScanDetailPage: React.FC = () => {
   const [docBlobError, setDocBlobError] = useState<string | null>(null);
   const [showDocPreview, setShowDocPreview] = useState(true);
 
+  const directDocUrl = scanId ? api.getScanDocumentUrl(Number(scanId)) : null;
+  const effectivePdfUrl = docBlobUrl || directDocUrl;
+
   // ── Fetch scan data ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!scanId) { setLoadingError('Invalid scan ID'); setLoading(false); return; }
     let mounted = true;
+    let activeBlobUrl: string | null = null;
 
     const fetchScan = async () => {
       setLoading(true);
@@ -292,11 +296,19 @@ export const ScanDetailPage: React.FC = () => {
 
     const fetchBlob = async () => {
       setLoadingDocBlob(true);
+      setDocBlobError(null);
       try {
         const blob = await api.getScanFileBlob(Number(scanId));
-        if (mounted) setDocBlobUrl(URL.createObjectURL(blob));
-      } catch {
-        if (mounted) setDocBlobError('Original document PDF file was not found on server disk.');
+        if (mounted) {
+          const url = URL.createObjectURL(blob);
+          activeBlobUrl = url;
+          setDocBlobUrl(url);
+          setDocBlobError(null);
+        }
+      } catch (err: any) {
+        if (mounted) {
+          setDocBlobError(err?.response?.data?.detail || 'Original document PDF file was not found on server disk.');
+        }
       } finally {
         if (mounted) setLoadingDocBlob(false);
       }
@@ -307,7 +319,7 @@ export const ScanDetailPage: React.FC = () => {
 
     return () => {
       mounted = false;
-      if (docBlobUrl) URL.revokeObjectURL(docBlobUrl);
+      if (activeBlobUrl) URL.revokeObjectURL(activeBlobUrl);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanId]);
@@ -642,9 +654,9 @@ export const ScanDetailPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {docBlobUrl && (
+                    {effectivePdfUrl && !docBlobError && (
                       <a
-                        href={docBlobUrl}
+                        href={effectivePdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
@@ -675,9 +687,9 @@ export const ScanDetailPage: React.FC = () => {
                       <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
                       <span className="text-xs font-semibold text-slate-400">Loading original PDF preview...</span>
                     </div>
-                  ) : docBlobUrl ? (
+                  ) : effectivePdfUrl && !docBlobError ? (
                     <iframe
-                      src={docBlobUrl}
+                      src={effectivePdfUrl}
                       title={`Original Document Preview - ${scan.filename}`}
                       className="w-full h-full border-0"
                     />

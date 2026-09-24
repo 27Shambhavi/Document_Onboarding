@@ -160,6 +160,17 @@ async def _process_single_candidate_stage1(
     signature_unlocked: bool = False,
 ) -> Dict[str, Any]:
 
+    # Persist file bytes to disk so PDF preview is guaranteed
+    for dest_dir in ["data/uploads", "uploads"]:
+        try:
+            os.makedirs(dest_dir, exist_ok=True)
+            target = os.path.join(dest_dir, os.path.basename(filename))
+            if not os.path.exists(target) and file_bytes:
+                with open(target, "wb") as f_out:
+                    f_out.write(file_bytes)
+        except Exception as exc:
+            logger.warning(f"[cache_file] Could not cache {filename} to {dest_dir}: {exc}")
+
     req_id = (
         f"REQ-{uuid.uuid4().hex[:8].upper()}"
     )

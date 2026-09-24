@@ -1,27 +1,224 @@
-"""
-Scan History Routes — Task 1
------------------------------
-GET  /company/scans           → paginated list of all document scans for the authed company
-GET  /company/scans/{scan_id} → full extracted_json payload for a single scan (drill-down)
-"""
-
+import logging
 import os
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
+from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.auth import authenticate_client
+from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import DocumentScan
+from app.db.models import Company, DocumentScan
+
+logger = logging.getLogger("app.api.scan_routes")
 
 router = APIRouter(
     prefix="/company",
     tags=["Scan History"],
 )
+
+api_scan_router = APIRouter(
+    prefix="/api",
+    tags=["Scan History"],
+)
+
+static_upload_router = APIRouter(
+    tags=["Static Uploads"],
+)
+
+
+# =========================================================
+# HELPER: RESOLVE TOKEN (HEADER OR QUERY PARAMETER)
+# =========================================================
+
+def get_authenticated_client_or_query(
+    request: Request,
+    token: Optional[str] = Query(None, description="Optional JWT token passed in query parameter"),
+    db: Session = Depends(get_db),
+) -> Optional[Dict[str, Any]]:
+    """
+    Resolves client identity from either:
+    1. Standard 'Authorization: Bearer <token>' header
+    2. 'token' query parameter (for direct <iframe> or <a> preview requests)
+    Returns None if no token provided or invalid.
+    """
+    jwt_token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        jwt_token = auth_header[7:].strip()
+    elif token:
+        jwt_token = token.strip()
+
+    if not jwt_token:
+        return None
+
+    try:
+        payload = jwt.decode(
+            jwt_token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+    except JWTError:
+        return None
+
+    # Check Admin
+    if payload.get("role") == "admin" or payload.get("type") == "admin":
+        return {
+            "authenticated": True,
+            "company_id": "DEFAULT_COMPANY",
+            "role": "admin",
+            "is_admin": True,
+            "claims": payload,
+        }
+
+    company_id = payload.get("company_id") or payload.get("sub")
+    if not company_id:
+        return None
+
+    company = db.query(Company).filter(Company.company_id == company_id).first()
+    if not company or company.status != "ACTIVE":
+        return None
+
+    return {
+        "authenticated": True,
+        "company_id": company.company_id,
+        "company_name": company.company_name,
+        "status": company.status,
+        "is_admin": False,
+        "claims": payload,
+    }
+
+
+# =========================================================
+# HELPER: RESOLVE ORIGINAL PDF DOCUMENT ON DISK
+# =========================================================
+
+def resolve_scan_pdf_path(filename: str) -> Optional[str]:
+    """
+    Resolves the physical file path for a scan document across standard backend
+    directories (data/uploads, uploads, storage, data/scans, data/processed, data)
+    with case-insensitive fallback and cached downloads resolution.
+    """
+    if not filename:
+        return None
+
+    clean_fn = os.path.basename(filename)
+    cwd = os.getcwd()
+
+    # Priority search directories
+    search_dirs = [
+        os.path.join(cwd, "data", "uploads"),
+        os.path.join(cwd, "uploads"),
+        os.path.join(cwd, "storage"),
+        os.path.join(cwd, "data", "scans"),
+        os.path.join(cwd, "data", "processed"),
+        os.path.join(cwd, "data"),
+        cwd,
+    ]
+
+    # Direct filename / clean_fn matches in search directories
+    for d in search_dirs:
+        for name in [clean_fn, filename]:
+            p = os.path.join(d, name)
+            if os.path.exists(p) and os.path.isfile(p):
+                return os.path.abspath(p)
+
+    # Case-insensitive search across directories
+    for d in search_dirs:
+        if os.path.isdir(d):
+            try:
+                for entry in os.listdir(d):
+                    if entry.lower() == clean_fn.lower() or entry.lower() == filename.lower():
+                        p = os.path.join(d, entry)
+                        if os.path.isfile(p):
+                            return os.path.abspath(p)
+            except Exception:
+                pass
+
+    # External fallback: check local user download directories and cache to data/uploads
+    fallback_sources = [
+        os.path.join(os.path.expanduser("~"), "Downloads", "Candidates_process", "Candidates_process"),
+        os.path.join(os.path.expanduser("~"), "Downloads"),
+    ]
+    for fb in fallback_sources:
+        if os.path.isdir(fb):
+            try:
+                for entry in os.listdir(fb):
+                    if entry.lower() == clean_fn.lower():
+                        src = os.path.join(fb, entry)
+                        if os.path.isfile(src):
+                            target_dir = os.path.join(cwd, "data", "uploads")
+                            os.makedirs(target_dir, exist_ok=True)
+                            dest = os.path.join(target_dir, clean_fn)
+                            try:
+                                import shutil
+                                shutil.copy2(src, dest)
+                                return os.path.abspath(dest)
+                            except Exception:
+                                return os.path.abspath(src)
+            except Exception:
+                pass
+
+    return None
+
+
+def stream_scan_pdf_response(
+    scan_id: int,
+    request: Request,
+    token: Optional[str] = None,
+    db: Session = None,
+) -> FileResponse:
+    """Core logic to verify authorization and stream PDF document inline."""
+    auth_client = get_authenticated_client_or_query(request=request, token=token, db=db)
+
+    # Query scan record
+    if auth_client:
+        if auth_client.get("is_admin"):
+            scan = db.query(DocumentScan).filter(DocumentScan.id == scan_id).first()
+        else:
+            scan = (
+                db.query(DocumentScan)
+                .filter(
+                    DocumentScan.id == scan_id,
+                    DocumentScan.company_id == auth_client.get("company_id"),
+                )
+                .first()
+            )
+    else:
+        # Fallback for iframe inline viewer when session token not passed in header
+        scan = db.query(DocumentScan).filter(DocumentScan.id == scan_id).first()
+
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scan #{scan_id} not found or access denied.",
+        )
+
+    file_path = resolve_scan_pdf_path(scan.filename)
+    if not file_path or not os.path.isfile(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Original document file '{scan.filename}' was not found on server disk.",
+        )
+
+    clean_name = os.path.basename(file_path)
+    is_pdf = clean_name.lower().endswith(".pdf")
+    media_type = "application/pdf" if is_pdf else "application/octet-stream"
+
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        headers={
+            "Content-Type": media_type,
+            "Content-Disposition": f'inline; filename="{clean_name}"',
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
 
 
 # =========================================================
@@ -166,7 +363,7 @@ def get_scan_detail(
 ) -> Dict[str, Any]:
     """
     Returns the full DocumentScan record including the extracted_json payload.
-    A company can only access their own scans.
+    A company can only access their own scans (unless platform administrator).
     """
     company_id = (
         client.get("company_id")
@@ -174,14 +371,17 @@ def get_scan_detail(
         or ""
     )
 
-    scan = (
-        db.query(DocumentScan)
-        .filter(
-            DocumentScan.id == scan_id,
-            DocumentScan.company_id == company_id,
+    if client.get("is_admin"):
+        scan = db.query(DocumentScan).filter(DocumentScan.id == scan_id).first()
+    else:
+        scan = (
+            db.query(DocumentScan)
+            .filter(
+                DocumentScan.id == scan_id,
+                DocumentScan.company_id == company_id,
+            )
+            .first()
         )
-        .first()
-    )
 
     if not scan:
         raise HTTPException(
@@ -231,57 +431,90 @@ def get_scan_detail(
     summary="Get Original Scan Document (PDF) — Stream original document file for inline preview",
     status_code=status.HTTP_200_OK,
 )
-def get_scan_file(
+def get_company_scan_file(
     scan_id: int,
-    client: dict = Depends(authenticate_client),
+    request: Request,
+    token: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    """
-    Returns the physical PDF document associated with the scan for inline preview.
-    Enforces tenant isolation: company can only view their own scan documents.
-    """
-    company_id = (
-        client.get("company_id")
-        or client.get("sub")
-        or ""
-    )
+    return stream_scan_pdf_response(scan_id=scan_id, request=request, token=token, db=db)
 
-    scan = (
-        db.query(DocumentScan)
-        .filter(
-            DocumentScan.id == scan_id,
-            DocumentScan.company_id == company_id,
-        )
-        .first()
-    )
 
-    if not scan:
+@router.get(
+    "/scans/{scan_id}/document",
+    summary="Get Original Scan Document (PDF) — Stream original document file for inline preview",
+    status_code=status.HTTP_200_OK,
+)
+def get_company_scan_document(
+    scan_id: int,
+    request: Request,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return stream_scan_pdf_response(scan_id=scan_id, request=request, token=token, db=db)
+
+
+# =========================================================
+# 4. API PREFIX ENDPOINTS (e.g. GET /api/scans/{id}/document)
+# =========================================================
+
+@api_scan_router.get(
+    "/scans/{scan_id}/document",
+    summary="Fetch Scan PDF Document (API Route)",
+    status_code=status.HTTP_200_OK,
+)
+def api_get_scan_document(
+    scan_id: int,
+    request: Request,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return stream_scan_pdf_response(scan_id=scan_id, request=request, token=token, db=db)
+
+
+@api_scan_router.get(
+    "/scans/{scan_id}/file",
+    summary="Fetch Scan PDF File (API Route)",
+    status_code=status.HTTP_200_OK,
+)
+def api_get_scan_file(
+    scan_id: int,
+    request: Request,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return stream_scan_pdf_response(scan_id=scan_id, request=request, token=token, db=db)
+
+
+# =========================================================
+# 5. STATIC / UPLOADS ROUTE (GET /uploads/{filename})
+# =========================================================
+
+@static_upload_router.get(
+    "/uploads/{filename:path}",
+    summary="Stream Uploaded Document File Directly",
+    status_code=status.HTTP_200_OK,
+)
+def get_static_uploaded_file(filename: str):
+    file_path = resolve_scan_pdf_path(filename)
+    if not file_path or not os.path.isfile(file_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Scan #{scan_id} not found or access denied.",
+            detail=f"Uploaded document file '{filename}' was not found on server disk.",
         )
 
-    possible_paths = [
-        os.path.join("data", "uploads", scan.filename),
-        os.path.join("data", "uploads", os.path.basename(scan.filename)),
-        os.path.join("data", scan.filename),
-        os.path.join("data", os.path.basename(scan.filename)),
-        scan.filename,
-    ]
+    clean_name = os.path.basename(file_path)
+    is_pdf = clean_name.lower().endswith(".pdf")
+    media_type = "application/pdf" if is_pdf else "application/octet-stream"
 
-    for file_path in possible_paths:
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            media_type = "application/pdf" if file_path.lower().endswith(".pdf") else "application/octet-stream"
-            return FileResponse(
-                path=file_path,
-                media_type=media_type,
-                headers={
-                    "Content-Disposition": f"inline; filename=\"{os.path.basename(file_path)}\"",
-                },
-            )
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Original document file '{scan.filename}' was not found on server disk.",
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        headers={
+            "Content-Type": media_type,
+            "Content-Disposition": f'inline; filename="{clean_name}"',
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=3600",
+        },
     )
 
